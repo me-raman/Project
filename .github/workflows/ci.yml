@@ -1,0 +1,95 @@
+name: CI Pipeline - Microservices
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Auth Service
+  auth-service:
+    name: Auth Service - Validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./services/auth-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm audit --audit-level=high
+        continue-on-error: true
+
+  # Product Service
+  product-service:
+    name: Product Service - Validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./services/product-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm audit --audit-level=high
+        continue-on-error: true
+
+  # Tracking Service
+  tracking-service:
+    name: Tracking Service - Validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./services/tracking-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm audit --audit-level=high
+        continue-on-error: true
+
+  # API Gateway
+  api-gateway:
+    name: API Gateway - Validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./services/api-gateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm audit --audit-level=high
+        continue-on-error: true
+
+  # Frontend
+  frontend:
+    name: Frontend - Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './client/package-lock.json'
+      - run: npm ci
+      - run: npm run lint
+        continue-on-error: true
+      - run: npm run build
+        env:
+          VITE_API_URL: https://api.example.com
+      - name: Check build
+        run: test -d dist || exit 1

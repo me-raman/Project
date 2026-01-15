@@ -154,22 +154,7 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
 
             {/* Scanner Modal */}
             {showScanner && (
-                <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fade-in">
-                    <div className="w-full max-w-sm animate-scale-in">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-medium text-white">Scan QR code</h2>
-                            <button
-                                onClick={() => setShowScanner(false)}
-                                className="text-zinc-400 hover:text-white transition-colors px-3 py-1 rounded-lg hover:bg-white/10"
-                            >
-                                Close
-                            </button>
-                        </div>
-                        <div className="rounded-2xl overflow-hidden glass">
-                            <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />
-                        </div>
-                    </div>
-                </div>
+                <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />
             )}
         </div>
     );

@@ -29,3 +29,5 @@ yarn-error.log*
 # Project specific
 bin/
 db_data/
+*.log
+*.pid

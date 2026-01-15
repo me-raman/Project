@@ -1,0 +1,94 @@
+# Render Blueprint Configuration for Microservices
+# https://render.com/docs/infrastructure-as-code
+
+services:
+  # API Gateway
+  - type: web
+    name: pharmatrace-gateway
+    env: node
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: cd services/api-gateway && npm install
+    startCommand: cd services/api-gateway && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false
+      - key: AUTH_SERVICE_URL
+        fromService:
+          name: pharmatrace-auth
+          type: web
+          property: hostport
+      - key: PRODUCT_SERVICE_URL
+        fromService:
+          name: pharmatrace-product
+          type: web
+          property: hostport
+      - key: TRACKING_SERVICE_URL
+        fromService:
+          name: pharmatrace-tracking
+          type: web
+          property: hostport
+
+  # Auth Service
+  - type: web
+    name: pharmatrace-auth
+    env: node
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: cd services/auth-service && npm install
+    startCommand: cd services/auth-service && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+  # Product Service
+  - type: web
+    name: pharmatrace-product
+    env: node
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: cd services/product-service && npm install
+    startCommand: cd services/product-service && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+  # Tracking Service
+  - type: web
+    name: pharmatrace-tracking
+    env: node
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: cd services/tracking-service && npm install
+    startCommand: cd services/tracking-service && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: FRONTEND_URL
+        sync: false

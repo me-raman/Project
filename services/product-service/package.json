@@ -1,0 +1,19 @@
+{
+    "name": "product-service",
+    "version": "1.0.0",
+    "description": "PharmaTrace Product Management Microservice",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "node --watch index.js"
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^17.2.3",
+        "express": "^5.2.1",
+        "express-rate-limit": "^7.5.0",
+        "express-validator": "^7.3.1",
+        "jsonwebtoken": "^9.0.3",
+        "mongoose": "^9.1.2"
+    }
+}

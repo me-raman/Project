@@ -1,0 +1,17 @@
+{
+    "name": "api-gateway",
+    "version": "1.0.0",
+    "description": "PharmaTrace API Gateway",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "node --watch index.js"
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^17.2.3",
+        "express": "^5.2.1",
+        "express-rate-limit": "^7.5.0",
+        "http-proxy-middleware": "^3.0.3"
+    }
+}
