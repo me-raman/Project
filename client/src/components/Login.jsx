@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Phone, KeyRound, ArrowRight, Loader2, UserPlus } from 'lucide-react';
+import { X, Phone, KeyRound, ArrowRight, Loader2, UserPlus, Info } from 'lucide-react';
 
 export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
     const [step, setStep] = useState('phone');
@@ -10,6 +10,7 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [flashSignUp, setFlashSignUp] = useState(false);
+    const [displayOtp, setDisplayOtp] = useState(''); // For showing OTP in notification
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -29,6 +30,7 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
         setLoading(true);
         setError('');
         setFlashSignUp(false);
+        setDisplayOtp('');
 
         if (formData.phoneNumber.length !== 10) {
             setError('Please enter a valid 10-digit phone number.');
@@ -58,8 +60,15 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
                 body: JSON.stringify({ phoneNumber: formData.phoneNumber })
             });
 
+            const otpData = await otpResponse.json();
+
             if (!otpResponse.ok) {
                 throw new Error('Failed to send OTP');
+            }
+
+            // DEV MODE: Display OTP from response
+            if (otpData.otp) {
+                setDisplayOtp(otpData.otp);
             }
 
             setStep('otp');
@@ -168,28 +177,41 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
                         )}
 
                         {step === 'otp' && (
-                            <div className="space-y-1.5 animate-fade-in">
-                                <label className="text-sm font-medium text-zinc-300">One-time password</label>
-                                <div className="relative">
-                                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
-                                    <input
-                                        type="text"
-                                        name="otp"
-                                        required
-                                        maxLength="6"
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl glass text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 tracking-widest text-lg font-bold text-center"
-                                        placeholder="000000"
-                                        value={formData.otp}
-                                        onChange={handleChange}
-                                    />
+                            <div className="space-y-4 animate-fade-in">
+                                {/* DEV MODE: OTP Notification */}
+                                {displayOtp && (
+                                    <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 flex items-start gap-3">
+                                        <Info className="h-5 w-5 text-green-400 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-sm font-medium text-green-400">Dev Mode: Your OTP</p>
+                                            <p className="text-2xl font-bold text-white tracking-widest mt-1">{displayOtp}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-zinc-300">One-time password</label>
+                                    <div className="relative">
+                                        <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
+                                        <input
+                                            type="text"
+                                            name="otp"
+                                            required
+                                            maxLength="6"
+                                            className="w-full pl-10 pr-4 py-3 rounded-xl glass text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 tracking-widest text-lg font-bold text-center"
+                                            placeholder="000000"
+                                            value={formData.otp}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setStep('phone')}
+                                        className="text-xs text-blue-400 hover:text-blue-300 font-medium mt-2"
+                                    >
+                                        Change phone number
+                                    </button>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setStep('phone')}
-                                    className="text-xs text-blue-400 hover:text-blue-300 font-medium mt-2"
-                                >
-                                    Change phone number
-                                </button>
                             </div>
                         )}
 
@@ -215,8 +237,8 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
                             <button
                                 onClick={onSignUpClick}
                                 className={`w-full py-3 px-4 rounded-xl text-zinc-400 font-medium transition-all flex items-center justify-center gap-2 ${flashSignUp
-                                        ? 'glass-accent text-blue-400 border-blue-500/30'
-                                        : 'glass hover:bg-white/5'
+                                    ? 'glass-accent text-blue-400 border-blue-500/30'
+                                    : 'glass hover:bg-white/5'
                                     }`}
                             >
                                 <UserPlus className="h-4 w-4" />

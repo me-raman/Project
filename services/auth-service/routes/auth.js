@@ -90,7 +90,8 @@ router.post('/send-otp', async (req, res) => {
         console.log(`[SMS SIMULATION] OTP: ${otp}`);
         console.log(`================================\n`);
 
-        res.json({ message: 'OTP sent successfully' });
+        // DEV MODE: Return OTP in response for display in notification
+        res.json({ message: 'OTP sent successfully', otp: otp });
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ message: 'Server error' });
