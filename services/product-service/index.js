@@ -6,7 +6,8 @@ const dotenv = require('dotenv');
 dotenv.config({ path: '../../.env' });
 
 const app = express();
-const PORT = process.env.PRODUCT_SERVICE_PORT || 3002;
+// Render requires binding to process.env.PORT
+const PORT = process.env.PORT || process.env.PRODUCT_SERVICE_PORT || 3002;
 
 // Validate required env vars
 if (!process.env.JWT_SECRET) {

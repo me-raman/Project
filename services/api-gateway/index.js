@@ -4,10 +4,12 @@ const dotenv = require('dotenv');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const rateLimit = require('express-rate-limit');
 
+// Load from ../../.env only if it exists (local dev)
 dotenv.config({ path: '../../.env' });
 
 const app = express();
-const PORT = process.env.GATEWAY_PORT || 3000;
+// Render requires binding to process.env.PORT
+const PORT = process.env.PORT || process.env.GATEWAY_PORT || 3000;
 
 // Service URLs
 const AUTH_SERVICE = process.env.AUTH_SERVICE_URL || 'http://localhost:3001';
