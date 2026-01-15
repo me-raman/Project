@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Shield, Globe, Zap, ScanLine, AlertCircle, Truck, Sparkles } from 'lucide-react';
 import { ManufacturerDashboard } from '../components/ManufacturerDashboard';
 import { DistributorDashboard } from '../components/DistributorDashboard';
@@ -8,6 +8,15 @@ import { Button, Card, Badge } from '../components/ui';
 export const Home = ({ onSearch, error, onOpenLogin }) => {
     const [query, setQuery] = useState('');
     const [showScanner, setShowScanner] = useState(false);
+
+    useEffect(() => {
+        const searchParams = new URLSearchParams(window.location.search);
+        const searchQuery = searchParams.get('search');
+        if (searchQuery) {
+            setQuery(searchQuery);
+            onSearch(searchQuery);
+        }
+    }, [onSearch]);
 
     const handleSubmit = (e) => {
         e.preventDefault();

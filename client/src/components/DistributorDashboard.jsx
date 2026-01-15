@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Search, CheckCircle, AlertCircle, Package, Truck, Calendar, Clock } from 'lucide-react';
 import { Scanner } from './Scanner';
 import { DashboardShell } from './layout/DashboardShell';
@@ -11,6 +11,26 @@ export const DistributorDashboard = () => {
     const [verificationResult, setVerificationResult] = useState(null);
     const [error, setError] = useState(null);
     const [updateSuccess, setUpdateSuccess] = useState(false);
+    const [recentActivity, setRecentActivity] = useState([]);
+
+    useEffect(() => {
+        fetchHistory();
+    }, []);
+
+    const fetchHistory = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/track/user/history', {
+                headers: { 'x-auth-token': token }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setRecentActivity(data);
+            }
+        } catch (err) {
+            console.error('Failed to fetch history:', err);
+        }
+    };
 
     const [showUpdateForm, setShowUpdateForm] = useState(false);
     const [canUpdate, setCanUpdate] = useState(false);
@@ -304,6 +324,42 @@ export const DistributorDashboard = () => {
                         <div className="bg-zinc-900 rounded-xl overflow-hidden aspect-square">
                             <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* Recent Activity List */}
+            {!verificationResult && recentActivity.length > 0 && (
+                <div className="mt-8 animate-fade-in">
+                    <h3 className="text-lg font-medium text-white mb-4">Your Recent Activity</h3>
+                    <div className="grid gap-3">
+                        {recentActivity.map((activity) => (
+                            <div key={activity._id} className="p-4 rounded-xl bg-zinc-800/30 border border-white/5 hover:border-white/10 transition-colors">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex gap-3">
+                                        <div className={`mt-1 p-1.5 rounded-full ${activity.status === 'In Transit' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}`}>
+                                            {activity.status === 'In Transit' ? <Truck className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-zinc-200">
+                                                {activity.status}
+                                            </p>
+                                            <p className="text-sm text-zinc-400">
+                                                {activity.product?.name} <span className="text-zinc-600">•</span> <span className="font-mono text-zinc-500">{activity.product?.productId}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="flex items-center text-xs text-zinc-500 gap-1">
+                                            <Clock className="h-3 w-3" />
+                                            {new Date(activity.timestamp).toLocaleDateString()}
+                                        </div>
+                                    </div>
+                                </div>
+                                {activity.notes && (
+                                    <p className="mt-2 text-sm text-zinc-500 pl-11">"{activity.notes}"</p>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}

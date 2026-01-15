@@ -88,4 +88,20 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+// @route   GET /api/track/user/history
+// @desc    Get tracking history for the current user
+router.get('/user/history', auth, async (req, res) => {
+    try {
+        const history = await Tracking.find({ handler: req.user.userId })
+            .populate('product', 'name productId batchNumber')
+            .sort({ timestamp: -1 })
+            .limit(10);
+
+        res.json(history);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;

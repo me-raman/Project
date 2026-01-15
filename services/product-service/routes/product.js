@@ -145,4 +145,19 @@ router.post('/batch', auth, authorize('Manufacturer'), async (req, res) => {
     }
 });
 
+// @route   GET /api/product/manufacturer/recent
+// @desc    Get recent products for the current manufacturer
+router.get('/manufacturer/recent', auth, authorize('Manufacturer'), async (req, res) => {
+    try {
+        const products = await Product.find({ manufacturer: req.user.userId })
+            .sort({ createdAt: -1 })
+            .limit(10);
+
+        res.json(products);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;

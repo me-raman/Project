@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import { Package, CheckCircle, AlertCircle, Printer, Plus } from 'lucide-react';
 import { DashboardShell } from './layout/DashboardShell';
@@ -16,6 +16,26 @@ export const ManufacturerDashboard = () => {
         count: ''
     });
     const [batchResults, setBatchResults] = useState([]);
+    const [recentBatches, setRecentBatches] = useState([]);
+
+    useEffect(() => {
+        fetchRecentBatches();
+    }, []);
+
+    const fetchRecentBatches = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/product/manufacturer/recent', {
+                headers: { 'x-auth-token': token }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setRecentBatches(data);
+            }
+        } catch (err) {
+            console.error('Failed to fetch recent batches:', err);
+        }
+    };
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -192,6 +212,30 @@ export const ManufacturerDashboard = () => {
                             </Button>
                         </div>
                     </form>
+                    {/* Recent Batches List */}
+                    {recentBatches.length > 0 && (
+                        <div className="mt-8 animate-fade-in">
+                            <h3 className="text-lg font-medium text-white mb-4">Recent Products</h3>
+                            <div className="space-y-3">
+                                {recentBatches.map((prod) => (
+                                    <div key={prod._id} className="p-4 rounded-xl bg-zinc-800/50 border border-white/5 flex justify-between items-center">
+                                        <div>
+                                            <p className="font-medium text-zinc-200">{prod.name}</p>
+                                            <p className="text-xs text-zinc-500 font-mono">{prod.productId}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <Badge variant={prod.currentStatus === 'Manufactured' ? 'info' : 'success'}>
+                                                {prod.currentStatus || 'Manufactured'}
+                                            </Badge>
+                                            <p className="text-xs text-zinc-500 mt-1">
+                                                {new Date(prod.createdAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </Card>
             )}
         </DashboardShell>

@@ -4,15 +4,45 @@ import { Timeline } from '../components/Timeline';
 import { CheckCircle2, AlertTriangle, ArrowLeft, Download, Share2 } from 'lucide-react';
 
 export const ProductDetails = ({ product, events, onBack }) => {
-    const isAuthentic = true; // Hardcoded for demo
+    const isAuthentic = true; // Hardcoded for demo as per previous logic
+
+    // Dynamic Stats Calculation
+    const totalScans = events.length + 1; // +1 for manufacture event
+
+    // Get latest event location
+    const latestEvent = events.length > 0 ? events[0] : null;
+    let currentLocation = latestEvent?.location || "In Transit";
+    if (product.currentStatus === 'Manufactured') currentLocation = "Factory Warehouse";
+    if (product.currentStatus === 'Received at Pharmacy') currentLocation = "Pharmacy Store";
+
+    // Calculate time since last update
+    const lastUpdateDate = latestEvent ? new Date(latestEvent.timestamp || new Date()) : new Date(product.updatedAt || new Date());
+    const timeSinceUpdate = getTimeSince(lastUpdateDate);
+
+    // Mock Quality Score (consistent based on productId)
+    const qualityScore = calculateQualityScore(product.productId);
+
+    const handleDownload = () => {
+        window.print();
+    };
+
+    const handleShare = async () => {
+        try {
+            const url = `${window.location.origin}/?search=${product.productId}`;
+            await navigator.clipboard.writeText(url);
+            alert('Report link copied to clipboard!');
+        } catch (err) {
+            console.error('Failed to copy', err);
+        }
+    };
 
     return (
-        <div className="min-h-screen bg-slate-950 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-slate-950 pt-24 pb-12 px-4 sm:px-6 lg:px-8 print:bg-white print:pt-0">
             <div className="max-w-6xl mx-auto animate-fade-in">
 
                 <button
                     onClick={onBack}
-                    className="group flex items-center text-slate-400 hover:text-blue-400 mb-8 transition-colors font-medium"
+                    className="group flex items-center text-slate-400 hover:text-blue-400 mb-8 transition-colors font-medium print:hidden"
                 >
                     <div className="p-2 rounded-full bg-slate-900 border border-slate-700 group-hover:border-blue-500/30 mr-3 shadow-sm transition-all">
                         <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
@@ -54,7 +84,7 @@ export const ProductDetails = ({ product, events, onBack }) => {
                     </div>
 
                     {/* Sidebar Column */}
-                    <div className="lg:col-span-1">
+                    <div className="lg:col-span-1 print:hidden">
                         <div className="sticky top-24 space-y-6">
 
                             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
@@ -63,23 +93,29 @@ export const ProductDetails = ({ product, events, onBack }) => {
                                     Supply Chain Stats
                                 </h3>
                                 <div className="space-y-5">
-                                    <Stat label="Total Scans" value="1,204" />
+                                    <Stat label="Total Scans" value={totalScans.toLocaleString()} />
                                     <div className="h-px bg-slate-800"></div>
-                                    <Stat label="Current Location" value="Chicago, IL" highlight />
+                                    <Stat label="Current Location" value={currentLocation} highlight />
                                     <div className="h-px bg-slate-800"></div>
-                                    <Stat label="Last Updated" value="2h ago" />
+                                    <Stat label="Last Updated" value={timeSinceUpdate} />
                                     <div className="h-px bg-slate-800"></div>
-                                    <Stat label="Quality Score" value="98/100" />
+                                    <Stat label="Quality Score" value={`${qualityScore}/100`} />
                                 </div>
                             </div>
 
                             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
                                 <h3 className="font-bold text-white mb-4">Actions</h3>
                                 <div className="space-y-3">
-                                    <button className="w-full py-3 px-4 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+                                    <button
+                                        onClick={handleDownload}
+                                        className="w-full py-3 px-4 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
+                                    >
                                         <Download className="h-4 w-4" /> Download Certificate
                                     </button>
-                                    <button className="w-full py-3 px-4 bg-slate-800 border border-slate-700 text-slate-300 rounded-xl font-medium hover:bg-slate-700 transition-all flex items-center justify-center gap-2">
+                                    <button
+                                        onClick={handleShare}
+                                        className="w-full py-3 px-4 bg-slate-800 border border-slate-700 text-slate-300 rounded-xl font-medium hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
+                                    >
                                         <Share2 className="h-4 w-4" /> Share Report
                                     </button>
                                 </div>
@@ -91,6 +127,31 @@ export const ProductDetails = ({ product, events, onBack }) => {
             </div>
         </div>
     );
+};
+
+// Helper function to format relative time
+const getTimeSince = (date) => {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + " years ago";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " months ago";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + " days ago";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + " hours ago";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + " minutes ago";
+    return Math.floor(seconds) + " seconds ago";
+};
+
+// Helper to generate consistent pseudo-random score
+const calculateQualityScore = (id = "") => {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+        hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return 95 + (Math.abs(hash) % 5); // Returns 95-99
 };
 
 const Stat = ({ label, value, highlight }) => (
