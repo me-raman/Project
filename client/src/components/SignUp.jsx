@@ -2,20 +2,20 @@ import React, { useState } from 'react';
 import { X, User, Building2, Truck, ArrowRight, Loader2, Phone, MapPin, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 export const SignUp = ({ onClose, onLoginClick, onRegisterSuccess }) => {
-    const [step, setStep] = useState(1); // 1: Role Selection, 2: Details
+    const [step, setStep] = useState(1);
     const [role, setRole] = useState('');
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        name: '', // Maps to companyName for simplicity
+        name: '',
         location: '',
         phoneNumber: ''
     });
     const [error, setError] = useState('');
 
     const roles = [
-        { id: 'Manufacturer', icon: Building2, label: 'Manufacturer', desc: 'Drug production & compliance' },
-        { id: 'Distributor', icon: Truck, label: 'Distributor', desc: 'Supply chain & logistics' },
-        { id: 'Customer', icon: User, label: 'Customer', desc: 'Purchase & verification' }
+        { id: 'Manufacturer', icon: Building2, label: 'Manufacturer', desc: 'Drug production & compliance', color: 'blue' },
+        { id: 'Distributor', icon: Truck, label: 'Distributor', desc: 'Supply chain & logistics', color: 'purple' },
+        { id: 'Customer', icon: User, label: 'Customer', desc: 'Purchase & verification', color: 'cyan' }
     ];
 
     const handleRoleSelect = (selectedRole) => {
@@ -26,15 +26,12 @@ export const SignUp = ({ onClose, onLoginClick, onRegisterSuccess }) => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-
-        // Enforce numeric only for phoneNumber
         if (name === 'phoneNumber') {
             if (!/^\d*$/.test(value)) {
                 setError('Only numbers are allowed');
                 return;
             }
         }
-
         setFormData({ ...formData, [name]: value });
         setError('');
     };
@@ -56,7 +53,7 @@ export const SignUp = ({ onClose, onLoginClick, onRegisterSuccess }) => {
                 companyName: formData.name,
                 phoneNumber: formData.phoneNumber,
                 location: role === 'Customer' ? 'Not Applicable' : formData.location,
-                username: formData.phoneNumber // Use phone as username for uniqueness
+                username: formData.phoneNumber
             };
 
             const response = await fetch('/api/auth/register', {
@@ -71,7 +68,6 @@ export const SignUp = ({ onClose, onLoginClick, onRegisterSuccess }) => {
                 throw new Error(data.message || 'Registration failed');
             }
 
-            // Success
             localStorage.setItem('token', data.token);
             localStorage.setItem('userRole', data.role);
             localStorage.setItem('userName', data.name);
@@ -91,111 +87,109 @@ export const SignUp = ({ onClose, onLoginClick, onRegisterSuccess }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl relative animate-slide-up flex flex-col md:flex-row">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-                {/* Sidebar / Header */}
-                <div className="bg-slate-950 p-8 md:w-1/3 border-r border-slate-800 flex flex-col justify-between">
-                    <div>
-                        <h2 className="text-2xl font-bold text-white mb-2">Sign Up</h2>
-                        <p className="text-slate-400 text-sm">Join the secure pharmaceutical network.</p>
+            {/* Modal */}
+            <div className="relative w-full max-w-lg glass-purple rounded-2xl overflow-hidden shadow-2xl animate-scale-in">
+                {/* Close Button */}
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 z-10 p-2 text-zinc-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                >
+                    <X className="h-5 w-5" />
+                </button>
 
-                        <div className="mt-8 space-y-4">
-                            <div className={`flex items-center gap-3 p-3 rounded-xl transition-all ${step === 1 ? 'bg-slate-800 shadow-md ring-1 ring-slate-700' : 'text-slate-500'}`}>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step === 1 ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-600'}`}>1</div>
-                                <span className="font-medium">Select Role</span>
-                            </div>
-                            <div className={`flex items-center gap-3 p-3 rounded-xl transition-all ${step === 2 ? 'bg-slate-800 shadow-md ring-1 ring-slate-700' : 'text-slate-500'}`}>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step === 2 ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-600'}`}>2</div>
-                                <span className="font-medium">Details</span>
-                            </div>
+                <div className="p-6 sm:p-8">
+                    {/* Header */}
+                    <div className="mb-6">
+                        <h2 className="text-2xl font-bold text-white">Create account</h2>
+                        <p className="text-zinc-400 mt-1">Join the pharmaceutical supply chain network</p>
+                    </div>
+
+                    {/* Progress Steps */}
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${step === 1 ? 'glass-accent text-blue-400' : 'text-zinc-500'}`}>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${step === 1 ? 'bg-blue-500 text-white' : 'bg-zinc-700 text-zinc-400'}`}>1</div>
+                            <span>Role</span>
+                        </div>
+                        <div className="w-4 h-px bg-zinc-700"></div>
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${step === 2 ? 'glass-accent text-blue-400' : 'text-zinc-500'}`}>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${step === 2 ? 'bg-blue-500 text-white' : 'bg-zinc-700 text-zinc-400'}`}>2</div>
+                            <span>Details</span>
                         </div>
                     </div>
-                </div>
 
-                {/* Main Content */}
-                <div className="p-8 md:w-2/3 relative">
-                    <button
-                        onClick={onClose}
-                        className="absolute top-4 right-4 z-10 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                    >
-                        <X className="h-5 w-5" />
-                    </button>
-
+                    {/* Error */}
                     {error && (
-                        <div className="mb-6 p-4 rounded-xl bg-red-900/20 border border-red-500/20 text-red-400 text-sm font-medium">
+                        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
                             {error}
                         </div>
                     )}
 
+                    {/* Step 1: Role Selection */}
                     {step === 1 && (
-                        <div className="space-y-4 animate-fade-in">
-                            <h3 className="text-lg font-semibold text-white mb-4">I am a...</h3>
-                            <div className="grid gap-4">
-                                {roles.map((r) => (
-                                    <button
-                                        key={r.id}
-                                        onClick={() => handleRoleSelect(r.id)}
-                                        className="group flex items-center gap-4 p-4 rounded-xl border border-slate-700 hover:border-blue-500 hover:ring-1 hover:ring-blue-500 hover:bg-blue-900/20 transition-all text-left"
-                                    >
-                                        <div className="p-3 bg-slate-800 rounded-lg group-hover:bg-blue-500/20 text-slate-400 group-hover:text-blue-400 transition-colors">
-                                            <r.icon className="h-6 w-6" />
-                                        </div>
-                                        <div>
-                                            <div className="font-bold text-white group-hover:text-blue-400">{r.label}</div>
-                                            <div className="text-xs text-slate-400 group-hover:text-blue-300/80">{r.desc}</div>
-                                        </div>
-                                        <ArrowRight className="h-5 w-5 ml-auto text-slate-600 group-hover:text-blue-500 transition-colors opacity-0 group-hover:opacity-100" />
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="mt-8 pt-6 border-t border-slate-800 text-center">
-                                <p className="text-sm text-slate-500">
+                        <div className="space-y-3 animate-fade-in">
+                            {roles.map((r) => (
+                                <button
+                                    key={r.id}
+                                    onClick={() => handleRoleSelect(r.id)}
+                                    className="w-full flex items-center gap-4 p-4 rounded-xl glass hover:bg-white/5 transition-all text-left group"
+                                >
+                                    <div className={`p-3 rounded-lg bg-gradient-to-br ${r.color === 'blue' ? 'from-blue-500/20 to-blue-600/10 text-blue-400' :
+                                            r.color === 'purple' ? 'from-purple-500/20 to-purple-600/10 text-purple-400' :
+                                                'from-cyan-500/20 to-cyan-600/10 text-cyan-400'
+                                        }`}>
+                                        <r.icon className="h-5 w-5" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="font-medium text-white">{r.label}</div>
+                                        <div className="text-xs text-zinc-500">{r.desc}</div>
+                                    </div>
+                                    <ArrowRight className="h-4 w-4 text-zinc-600 group-hover:text-white transition-colors" />
+                                </button>
+                            ))}
+
+                            <div className="pt-4 text-center">
+                                <p className="text-sm text-zinc-500">
                                     Already have an account?{' '}
-                                    <button onClick={onLoginClick} className="text-blue-400 font-bold hover:underline">
-                                        Login
+                                    <button onClick={onLoginClick} className="text-blue-400 font-medium hover:underline">
+                                        Sign in
                                     </button>
                                 </p>
                             </div>
                         </div>
                     )}
 
+                    {/* Step 2: Details Form */}
                     {step === 2 && (
                         <form onSubmit={handleSubmit} className="space-y-5 animate-fade-in">
-                            <div className="flex items-start gap-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setStep(1)}
-                                    className="mt-1 p-2 -ml-2 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-full transition-colors"
-                                >
-                                    <ArrowLeft className="h-5 w-5" />
-                                </button>
-                                <div>
-                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <span className="text-blue-400">{role}</span> Details
-                                    </h3>
-                                    <p className="text-slate-400 text-sm">Please fill in your information.</p>
-                                </div>
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setStep(1)}
+                                className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors mb-4"
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                                Back to role selection
+                            </button>
 
                             <div className="space-y-4">
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium text-slate-300 ml-1">
-                                        {role === 'Customer' ? 'Full Name' : 'Company Name'}
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-zinc-300">
+                                        {role === 'Customer' ? 'Full name' : 'Company name'}
                                     </label>
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            {role === 'Customer' ? (
-                                                <User className="h-5 w-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                                            ) : (
-                                                <Building2 className="h-5 w-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                                            )}
-                                        </div>
+                                    <div className="relative">
+                                        {role === 'Customer' ? (
+                                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
+                                        ) : (
+                                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
+                                        )}
                                         <input
                                             type="text"
                                             name="name"
                                             required
-                                            className="block w-full pl-10 pr-3 py-3 border border-slate-700 rounded-xl bg-slate-800 text-white placeholder-slate-500 focus:outline-none focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                                            className="w-full pl-10 pr-4 py-3 rounded-xl glass text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                             placeholder={role === 'Customer' ? "John Doe" : "Acme Corp"}
                                             value={formData.name}
                                             onChange={handleChange}
@@ -203,19 +197,17 @@ export const SignUp = ({ onClose, onLoginClick, onRegisterSuccess }) => {
                                     </div>
                                 </div>
 
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium text-slate-300 ml-1">Phone Number</label>
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <Phone className="h-5 w-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                                        </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-zinc-300">Phone number</label>
+                                    <div className="relative">
+                                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
                                         <input
                                             type="tel"
                                             name="phoneNumber"
                                             required
                                             maxLength="10"
-                                            className="block w-full pl-10 pr-3 py-3 border border-slate-700 rounded-xl bg-slate-800 text-white placeholder-slate-500 focus:outline-none focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                                            placeholder=""
+                                            className="w-full pl-10 pr-4 py-3 rounded-xl glass text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                            placeholder="10-digit number"
                                             value={formData.phoneNumber}
                                             onChange={handleChange}
                                         />
@@ -223,17 +215,15 @@ export const SignUp = ({ onClose, onLoginClick, onRegisterSuccess }) => {
                                 </div>
 
                                 {role !== 'Customer' && (
-                                    <div className="space-y-1">
-                                        <label className="text-sm font-medium text-slate-300 ml-1">Location</label>
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <MapPin className="h-5 w-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                                            </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-zinc-300">Location</label>
+                                        <div className="relative">
+                                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
                                             <input
                                                 type="text"
                                                 name="location"
                                                 required
-                                                className="block w-full pl-10 pr-3 py-3 border border-slate-700 rounded-xl bg-slate-800 text-white placeholder-slate-500 focus:outline-none focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                                                className="w-full pl-10 pr-4 py-3 rounded-xl glass text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                                 placeholder="City, Country"
                                                 value={formData.location}
                                                 onChange={handleChange}
@@ -243,22 +233,20 @@ export const SignUp = ({ onClose, onLoginClick, onRegisterSuccess }) => {
                                 )}
                             </div>
 
-                            <div className="pt-2">
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg shadow-blue-500/20 text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 font-bold transition-all transform hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
-                                >
-                                    {loading ? (
-                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                    ) : (
-                                        <>
-                                            Complete Registration
-                                            <CheckCircle2 className="ml-2 h-4 w-4" />
-                                        </>
-                                    )}
-                                </button>
-                            </div>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full flex items-center justify-center py-3 px-4 rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 font-semibold transition-all shadow-lg shadow-blue-500/20 disabled:opacity-70"
+                            >
+                                {loading ? (
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                ) : (
+                                    <>
+                                        Create account
+                                        <CheckCircle2 className="ml-2 h-4 w-4" />
+                                    </>
+                                )}
+                            </button>
                         </form>
                     )}
                 </div>

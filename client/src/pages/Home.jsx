@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Search, ShieldCheck, Globe, Zap, ScanLine, XCircle, AlertTriangle, Truck, ArrowRight } from 'lucide-react';
+import { Search, Shield, Globe, Zap, ScanLine, AlertCircle, Truck, Sparkles } from 'lucide-react';
 import { ManufacturerDashboard } from '../components/ManufacturerDashboard';
 import { DistributorDashboard } from '../components/DistributorDashboard';
 import { Scanner } from '../components/Scanner';
 import { Button, Card, Badge } from '../components/ui';
 
-export const Home = ({ onSearch, error }) => {
+export const Home = ({ onSearch, error, onOpenLogin }) => {
     const [query, setQuery] = useState('');
     const [showScanner, setShowScanner] = useState(false);
 
@@ -24,132 +24,169 @@ export const Home = ({ onSearch, error }) => {
 
     // Role-based dashboard routing
     if (userRole?.toLowerCase() === 'manufacturer') {
-        return (
-            <div className="min-h-[calc(100vh-64px)] bg-slate-50 py-6">
-                <ManufacturerDashboard />
-            </div>
-        );
+        return <ManufacturerDashboard />;
     }
 
     if (userRole?.toLowerCase() === 'distributor') {
-        return (
-            <div className="min-h-[calc(100vh-64px)] bg-slate-50 py-6">
-                <DistributorDashboard />
-            </div>
-        );
+        return <DistributorDashboard />;
     }
 
-    // Public Landing Page
+    // Public verification page - Mobile first
     return (
-        <div className="min-h-[calc(100vh-64px)] bg-slate-50">
+        <div className="min-h-screen pt-16">
             {/* Hero Section */}
-            <div className="bg-white border-b border-slate-200">
-                <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-                    <Badge variant="info" className="mb-4">Pharmaceutical Track & Trace</Badge>
+            <div className="px-4 sm:px-6 py-12 sm:py-20">
+                <div className="max-w-3xl mx-auto text-center">
+                    {/* Badge */}
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-accent mb-6 animate-fade-in">
+                        <Sparkles className="h-3.5 w-3.5 text-blue-400" />
+                        <span className="text-xs font-medium text-blue-300">Pharmaceutical Supply Chain Verification</span>
+                    </div>
 
-                    <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-                        Verify Medicine Authenticity
+                    {/* Heading */}
+                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 animate-fade-in">
+                        Verify product{' '}
+                        <span className="gradient-text">authenticity</span>
                     </h1>
-
-                    <p className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto">
-                        Scan the QR code or enter the product ID to verify your medication is genuine and track its journey from manufacturer to pharmacy.
+                    <p className="text-base sm:text-lg text-zinc-400 mb-8 max-w-xl mx-auto animate-fade-in">
+                        Enter a product ID or scan a QR code to verify authenticity and trace the complete supply chain journey.
                     </p>
 
                     {/* Error States */}
-                    {error === 'Product in supply chain (not yet at pharmacy)' ? (
-                        <Card className="max-w-md mx-auto border-blue-200 bg-blue-50 mb-8">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-full bg-blue-100">
-                                    <Truck className="h-6 w-6 text-blue-600" />
-                                </div>
-                                <div className="text-left">
-                                    <h3 className="font-semibold text-blue-800">In Transit</h3>
-                                    <p className="text-sm text-blue-600">
-                                        This product is still in the supply chain
-                                    </p>
-                                </div>
+                    {error && (
+                        <div className="max-w-md mx-auto mb-8 animate-slide-up">
+                            <div className={`p-4 rounded-xl glass flex items-start gap-3 text-left ${error.includes('supply chain') ? 'border-blue-500/30' : 'border-red-500/30'
+                                }`}>
+                                {error.includes('supply chain') ? (
+                                    <>
+                                        <Truck className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="font-medium text-white">Product in transit</p>
+                                            <p className="text-sm text-zinc-400 mt-0.5">
+                                                This product is still being delivered.
+                                            </p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="font-medium text-white">Unable to verify</p>
+                                            <p className="text-sm text-zinc-400 mt-0.5">{error}</p>
+                                        </div>
+                                    </>
+                                )}
                             </div>
-                        </Card>
-                    ) : error ? (
-                        <Card className="max-w-md mx-auto border-red-200 bg-red-50 mb-8">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-full bg-red-100">
-                                    <XCircle className="h-6 w-6 text-red-600" />
-                                </div>
-                                <div className="text-left">
-                                    <h3 className="font-semibold text-red-800">Verification Failed</h3>
-                                    <p className="text-sm text-red-600">{error}</p>
-                                </div>
-                            </div>
-                        </Card>
-                    ) : null}
+                        </div>
+                    )}
 
                     {/* Search Form */}
                     {localStorage.getItem('token') ? (
-                        <form onSubmit={handleSubmit} className="max-w-xl mx-auto">
-                            <div className="flex gap-2">
-                                <div className="flex-1 relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Enter Product ID (e.g., PROD-BATCH-123456)"
-                                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        value={query}
-                                        onChange={(e) => setQuery(e.target.value)}
-                                    />
+                        <div className="max-w-lg mx-auto animate-slide-up">
+                            <form onSubmit={handleSubmit}>
+                                {/* Mobile: Stack vertically */}
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <div className="flex-1 relative">
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
+                                        <input
+                                            type="text"
+                                            placeholder="Enter product ID"
+                                            className="w-full pl-12 pr-4 py-3.5 rounded-xl glass text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-base"
+                                            value={query}
+                                            onChange={(e) => setQuery(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="flex gap-3 sm:flex-shrink-0">
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            onClick={() => setShowScanner(true)}
+                                            className="flex-1 sm:flex-initial"
+                                        >
+                                            <ScanLine className="h-5 w-5 sm:mr-2" />
+                                            <span className="sm:inline">Scan</span>
+                                        </Button>
+                                        <Button type="submit" className="flex-1 sm:flex-initial">
+                                            Verify
+                                        </Button>
+                                    </div>
                                 </div>
-                                <Button type="button" variant="secondary" onClick={() => setShowScanner(true)}>
-                                    <ScanLine className="h-5 w-5" />
-                                </Button>
-                                <Button type="submit">
-                                    Verify
-                                    <ArrowRight className="h-4 w-4 ml-2" />
+                            </form>
+                        </div>
+                    ) : (
+                        <div className="max-w-sm mx-auto animate-slide-up">
+                            <div className="p-6 rounded-2xl glass-purple text-center">
+                                <p className="text-zinc-300 mb-4">Sign in to verify products</p>
+                                <Button onClick={onOpenLogin} className="w-full sm:w-auto">
+                                    Sign in to continue
                                 </Button>
                             </div>
-                        </form>
-                    ) : (
-                        <Card className="max-w-md mx-auto">
-                            <p className="text-slate-600">Please login to access the verification system.</p>
-                        </Card>
+                        </div>
                     )}
                 </div>
             </div>
 
-            {/* Features Section */}
-            <div className="max-w-5xl mx-auto px-4 py-16">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <FeatureCard
-                        icon={<ShieldCheck className="h-6 w-6 text-emerald-600" />}
-                        title="Verified Origin"
-                        description="Every product is cryptographically signed at manufacture."
-                    />
-                    <FeatureCard
-                        icon={<Globe className="h-6 w-6 text-blue-600" />}
-                        title="Full Chain Visibility"
-                        description="Track movement from factory to pharmacy."
-                    />
-                    <FeatureCard
-                        icon={<Zap className="h-6 w-6 text-amber-600" />}
-                        title="Instant Results"
-                        description="Scan and get verification in seconds."
-                    />
+            {/* Features - Mobile first grid */}
+            <div className="px-4 sm:px-6 pb-16">
+                <div className="max-w-4xl mx-auto">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <FeatureCard
+                            icon={<Shield className="h-5 w-5" />}
+                            title="Verified origin"
+                            description="Track from manufacture to delivery"
+                            color="blue"
+                        />
+                        <FeatureCard
+                            icon={<Globe className="h-5 w-5" />}
+                            title="Full visibility"
+                            description="Complete supply chain journey"
+                            color="purple"
+                        />
+                        <FeatureCard
+                            icon={<Zap className="h-5 w-5" />}
+                            title="Instant results"
+                            description="Verification in seconds"
+                            color="cyan"
+                        />
+                    </div>
                 </div>
             </div>
 
             {/* Scanner Modal */}
             {showScanner && (
-                <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />
+                <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fade-in">
+                    <div className="w-full max-w-sm animate-scale-in">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-medium text-white">Scan QR code</h2>
+                            <button
+                                onClick={() => setShowScanner(false)}
+                                className="text-zinc-400 hover:text-white transition-colors px-3 py-1 rounded-lg hover:bg-white/10"
+                            >
+                                Close
+                            </button>
+                        </div>
+                        <div className="rounded-2xl overflow-hidden glass">
+                            <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
 };
 
-const FeatureCard = ({ icon, title, description }) => (
-    <Card className="text-center">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-slate-100 mb-4">
-            {icon}
+const FeatureCard = ({ icon, title, description, color }) => {
+    const colors = {
+        blue: 'from-blue-500/20 to-blue-600/5 border-blue-500/20 text-blue-400',
+        purple: 'from-purple-500/20 to-purple-600/5 border-purple-500/20 text-purple-400',
+        cyan: 'from-cyan-500/20 to-cyan-600/5 border-cyan-500/20 text-cyan-400',
+    };
+
+    return (
+        <div className={`p-5 rounded-xl bg-gradient-to-br ${colors[color]} border backdrop-blur-sm transition-all hover:scale-[1.02]`}>
+            <div className="mb-3">{icon}</div>
+            <h3 className="font-medium text-white mb-1">{title}</h3>
+            <p className="text-sm text-zinc-400">{description}</p>
         </div>
-        <h3 className="font-semibold text-slate-900 mb-2">{title}</h3>
-        <p className="text-sm text-slate-600">{description}</p>
-    </Card>
-);
+    );
+};

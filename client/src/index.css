@@ -1,108 +1,154 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap');
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/*
+ * PharmaTrace Design System
+ * Tailwind CSS v4
+ * Multi-color Dark Glass Morphism
+ */
 
-:root {
-  --bg-primary: #0A0F14;
-  --bg-secondary: #0F1720;
-  --text-primary: #E6EDF3;
-  --text-secondary: #9BA4AE;
-  --text-muted: #6B7280;
-  --glass-bg: rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.08);
+@theme {
+  /* Rich dark backgrounds with subtle color */
+  --color-bg-base: #0c0d10;
+  --color-bg-subtle: #12141a;
+  --color-bg-surface: #181b24;
+  --color-bg-elevated: #1e222d;
+
+  /* Text hierarchy */
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #71717a;
+
+  /* Accent colors */
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+
+  /* Multi-color accents for glass */
+  --color-purple: #8b5cf6;
+  --color-cyan: #06b6d4;
+  --color-pink: #ec4899;
 }
 
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: 'Inter', sans-serif;
-  margin: 0;
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
   min-height: 100vh;
 }
 
-/* Operational Data / IDs */
-.font-mono-data {
-  font-family: 'JetBrains Mono', monospace;
+/* Smooth animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
-/* Glass-morphism Primitive */
-.glass-surface {
-  background: var(--glass-bg);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid var(--glass-border);
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Global Zero-Animation Enforcement */
-* {
-  transition: none !important;
-  animation: none !important;
-  scroll-behavior: auto !important;
-  transform: none !important;
-  /* Block all scale/hover animations */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Reset buttons and interactive elements to not have default transitions */
-button,
-a,
-input,
-select,
-textarea {
-  transition: none !important;
-  animation: none !important;
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-/* Hide scrollbars but keep functionality */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+/* Glass morphism with gradient borders */
+.glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-accent {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.glass-purple {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Smooth transitions */
+.transition-smooth {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
-  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1F2937;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #374151;
-}
-
-/* Typography Hierarchy */
-h1 {
-  font-size: 1.875rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-h3 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-h4 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-p,
-span,
-div {
-  line-height: 1.6;
+  background: rgba(255, 255, 255, 0.15);
 }

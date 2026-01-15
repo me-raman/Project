@@ -1,70 +1,70 @@
 import React from 'react';
 
 /**
- * Command Center Input
- * Dark Glass, High Contrast.
+ * Input - Clear, accessible form inputs
  */
 export const Input = ({
     label,
     error,
     className = '',
-    mono = false,
     ...props
 }) => {
     return (
         <div className="space-y-1.5">
             {label && (
-                <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#9BA4AE]">
+                <label className="block text-sm font-medium text-zinc-300">
                     {label}
                 </label>
             )}
             <input
                 className={`
-                    block w-full px-3 py-2 rounded-sm border
-                    bg-white/5 border-white/10
-                    text-[#E6EDF3] placeholder:text-[#6B7280]
-                    focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50
-                    disabled:opacity-30
-                    ${mono ? 'font-mono-data text-xs' : 'text-sm'}
-                    ${error ? 'border-red-500/50' : 'border-white/10'}
+                    block w-full px-3 py-2 rounded-lg
+                    bg-zinc-900 border border-zinc-700
+                    text-zinc-100 placeholder:text-zinc-500
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    ${error ? 'border-red-500 focus:ring-red-500' : ''}
                     ${className}
                 `}
                 {...props}
             />
             {error && (
-                <p className="text-[10px] text-red-500 uppercase tracking-tighter">{error}</p>
+                <p className="text-sm text-red-400">{error}</p>
             )}
         </div>
     );
 };
 
+/**
+ * Select - Dropdown with consistent styling
+ */
 export const Select = ({
     label,
     options = [],
-    placeholder = 'SELECT...',
+    placeholder = 'Select an option',
     className = '',
     ...props
 }) => {
     return (
         <div className="space-y-1.5">
             {label && (
-                <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#9BA4AE]">
+                <label className="block text-sm font-medium text-zinc-300">
                     {label}
                 </label>
             )}
             <select
                 className={`
-                    block w-full px-3 py-2 rounded-sm border
-                    bg-[#0F1720] border-white/10
-                    text-[#E6EDF3] text-sm
-                    focus:outline-none focus:ring-1 focus:ring-blue-500/50
+                    block w-full px-3 py-2 rounded-lg
+                    bg-zinc-900 border border-zinc-700
+                    text-zinc-100
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                     ${className}
                 `}
                 {...props}
             >
-                <option value="" className="bg-[#0A0F14]">{placeholder}</option>
+                <option value="" className="bg-zinc-900">{placeholder}</option>
                 {options.map((opt) => (
-                    <option key={opt.value} value={opt.value} className="bg-[#0A0F14]">
+                    <option key={opt.value} value={opt.value} className="bg-zinc-900">
                         {opt.label}
                     </option>
                 ))}
@@ -73,6 +73,9 @@ export const Select = ({
     );
 };
 
+/**
+ * Textarea - Multi-line input
+ */
 export const Textarea = ({
     label,
     className = '',
@@ -81,16 +84,16 @@ export const Textarea = ({
     return (
         <div className="space-y-1.5">
             {label && (
-                <label className="block text-[10px] uppercase tracking-widest font-semibold text-[#9BA4AE]">
+                <label className="block text-sm font-medium text-zinc-300">
                     {label}
                 </label>
             )}
             <textarea
                 className={`
-                    block w-full px-3 py-2 rounded-sm border
-                    bg-white/5 border-white/10
-                    text-[#E6EDF3] text-sm placeholder:text-[#6B7280]
-                    focus:outline-none focus:ring-1 focus:ring-blue-500/50
+                    block w-full px-3 py-2 rounded-lg
+                    bg-zinc-900 border border-zinc-700
+                    text-zinc-100 placeholder:text-zinc-500
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                     resize-none
                     ${className}
                 `}

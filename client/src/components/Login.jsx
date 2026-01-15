@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Phone, KeyRound, ArrowRight, Loader2, UserPlus } from 'lucide-react';
 
 export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
-    const [step, setStep] = useState('phone'); // 'phone' or 'otp'
+    const [step, setStep] = useState('phone');
     const [formData, setFormData] = useState({
         phoneNumber: '',
         otp: ''
@@ -13,15 +13,12 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-
-        // Enforce numeric only for phoneNumber and otp
         if (name === 'phoneNumber' || name === 'otp') {
             if (!/^\d*$/.test(value)) {
                 setError('Only numbers are allowed');
                 return;
             }
         }
-
         setFormData({ ...formData, [name]: value });
         setError('');
         if (name === 'phoneNumber') setFlashSignUp(false);
@@ -40,7 +37,6 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
         }
 
         try {
-            // Check if phone number exists
             const response = await fetch('/api/auth/check-phone', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -56,7 +52,6 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
                 return;
             }
 
-            // Send OTP via API
             const otpResponse = await fetch('/api/auth/send-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -113,32 +108,37 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative animate-slide-up">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
+            {/* Modal */}
+            <div className="relative w-full max-w-md glass-purple rounded-2xl overflow-hidden shadow-2xl animate-scale-in">
                 {/* Close Button */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 z-10 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                    className="absolute top-4 right-4 z-10 p-2 text-zinc-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
                 >
                     <X className="h-5 w-5" />
                 </button>
 
-                <div className="p-8 pt-10">
+                <div className="p-6 sm:p-8">
+                    {/* Header */}
                     <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 mb-4 border border-blue-500/20">
+                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 text-blue-400 mb-4 border border-blue-500/20">
                             {step === 'phone' ? <Phone className="h-6 w-6" /> : <KeyRound className="h-6 w-6" />}
                         </div>
                         <h2 className="text-2xl font-bold text-white">
-                            {step === 'phone' ? 'Welcome Back' : 'Enter OTP'}
+                            {step === 'phone' ? 'Welcome back' : 'Enter OTP'}
                         </h2>
-                        <p className="text-slate-400 mt-2">
+                        <p className="text-zinc-400 mt-2">
                             {step === 'phone'
-                                ? 'Sign in with your registered phone number'
-                                : `Verify code sent to ${formData.phoneNumber}`}
+                                ? 'Sign in with your phone number'
+                                : `Code sent to ${formData.phoneNumber}`}
                         </p>
                     </div>
 
+                    {/* Error */}
                     {error && (
                         <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium flex items-center">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2"></span>
@@ -146,22 +146,20 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
                         </div>
                     )}
 
+                    {/* Form */}
                     <form onSubmit={step === 'phone' ? handleSendOTP : handleVerifyOTP} className="space-y-5">
-
                         {step === 'phone' && (
-                            <div className="space-y-1 animate-fade-in">
-                                <label className="text-sm font-medium text-slate-300 ml-1">Phone Number</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Phone className="h-5 w-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                                    </div>
+                            <div className="space-y-1.5 animate-fade-in">
+                                <label className="text-sm font-medium text-zinc-300">Phone number</label>
+                                <div className="relative">
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
                                     <input
                                         type="tel"
                                         name="phoneNumber"
                                         required
                                         maxLength="10"
-                                        className="block w-full pl-10 pr-3 py-3 border border-slate-700 rounded-xl leading-5 bg-slate-800 text-white placeholder-slate-500 focus:outline-none focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                                        placeholder=""
+                                        className="w-full pl-10 pr-4 py-3 rounded-xl glass text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                        placeholder="10-digit number"
                                         value={formData.phoneNumber}
                                         onChange={handleChange}
                                     />
@@ -170,60 +168,59 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
                         )}
 
                         {step === 'otp' && (
-                            <div className="space-y-1 animate-fade-in">
-                                <label className="text-sm font-medium text-slate-300 ml-1">One-Time Password</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <KeyRound className="h-5 w-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                                    </div>
+                            <div className="space-y-1.5 animate-fade-in">
+                                <label className="text-sm font-medium text-zinc-300">One-time password</label>
+                                <div className="relative">
+                                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
                                     <input
                                         type="text"
                                         name="otp"
                                         required
                                         maxLength="6"
-                                        className="block w-full pl-10 pr-3 py-3 border border-slate-700 rounded-xl leading-5 bg-slate-800 text-white placeholder-slate-500 focus:outline-none focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all tracking-widest text-lg font-bold"
+                                        className="w-full pl-10 pr-4 py-3 rounded-xl glass text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 tracking-widest text-lg font-bold text-center"
                                         placeholder="000000"
                                         value={formData.otp}
                                         onChange={handleChange}
                                     />
                                 </div>
-                                <div className="flex justify-end mt-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setStep('phone')}
-                                        className="text-xs text-blue-400 hover:text-blue-300 font-medium"
-                                    >
-                                        Change Phone Number
-                                    </button>
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setStep('phone')}
+                                    className="text-xs text-blue-400 hover:text-blue-300 font-medium mt-2"
+                                >
+                                    Change phone number
+                                </button>
                             </div>
                         )}
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg shadow-blue-500/20 text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 font-bold transition-all transform hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full flex items-center justify-center py-3 px-4 rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 font-semibold transition-all shadow-lg shadow-blue-500/20 disabled:opacity-70"
                         >
                             {loading ? (
                                 <Loader2 className="h-5 w-5 animate-spin" />
                             ) : (
                                 <>
-                                    {step === 'phone' ? 'Send OTP' : 'Verify & Sign In'}
+                                    {step === 'phone' ? 'Send OTP' : 'Verify & sign in'}
                                     <ArrowRight className="ml-2 h-4 w-4" />
                                 </>
                             )}
                         </button>
                     </form>
 
+                    {/* Sign up link */}
                     {step === 'phone' && (
-                        <div className="mt-6 flex flex-col gap-3">
+                        <div className="mt-6">
                             <button
                                 onClick={onSignUpClick}
-                                className={`w-full py-3 px-4 border border-slate-700 rounded-xl text-slate-400 font-medium hover:bg-slate-800 transition-all flex items-center justify-center gap-2 group ${flashSignUp ? 'ring-2 ring-blue-500/50 border-blue-500/50 text-blue-400 bg-blue-900/20 shadow-md transform scale-[1.02]' : ''
+                                className={`w-full py-3 px-4 rounded-xl text-zinc-400 font-medium transition-all flex items-center justify-center gap-2 ${flashSignUp
+                                        ? 'glass-accent text-blue-400 border-blue-500/30'
+                                        : 'glass hover:bg-white/5'
                                     }`}
                             >
-                                <UserPlus className={`h-4 w-4 text-slate-500 group-hover:text-blue-400 transition-colors ${flashSignUp ? 'text-blue-400' : ''}`} />
-                                {flashSignUp ? 'Create Account for this Number' : 'New User? Sign Up'}
+                                <UserPlus className="h-4 w-4" />
+                                {flashSignUp ? 'Create account' : 'New user? Sign up'}
                             </button>
                         </div>
                     )}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import QRCode from 'react-qr-code';
-import { Package, Calendar, Hash, CheckCircle, AlertCircle, FileText } from 'lucide-react';
+import { Package, CheckCircle, AlertCircle, Printer, Plus } from 'lucide-react';
 import { DashboardShell } from './layout/DashboardShell';
 import { Button, Card, CardHeader, CardTitle, CardDescription, Input, Badge } from './ui';
 
@@ -29,12 +29,6 @@ export const ManufacturerDashboard = () => {
         setError('');
         setSuccess(false);
 
-        if (!formData.name || !formData.batchNumber || !formData.mfgDate || !formData.expDate || !formData.count) {
-            setError('Please fill in all required fields');
-            setLoading(false);
-            return;
-        }
-
         try {
             const token = localStorage.getItem('token');
             const response = await fetch('/api/product/batch', {
@@ -47,10 +41,7 @@ export const ManufacturerDashboard = () => {
             });
 
             const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to register batch');
-            }
+            if (!response.ok) throw new Error(data.message || 'Failed to register batch');
 
             setSuccess(true);
             setBatchResults(data.products);
@@ -64,75 +55,72 @@ export const ManufacturerDashboard = () => {
     const resetForm = () => {
         setBatchResults([]);
         setSuccess(false);
-        setFormData({
-            name: '',
-            batchNumber: '',
-            mfgDate: '',
-            expDate: '',
-            count: ''
-        });
+        setFormData({ name: '', batchNumber: '', mfgDate: '', expDate: '', count: '' });
     };
 
     return (
         <DashboardShell
-            title="Register Product Batch"
-            description="Generate unique IDs for every unit in your batch"
+            title="Register products"
+            description="Generate unique identifiers for your product batch"
             icon={Package}
+            actions={batchResults.length > 0 && (
+                <div className="flex gap-2">
+                    <Button variant="secondary" onClick={resetForm}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        New batch
+                    </Button>
+                    <Button onClick={() => window.print()}>
+                        <Printer className="h-4 w-4 mr-2" />
+                        Print labels
+                    </Button>
+                </div>
+            )}
         >
             {/* Status Messages */}
             {success && (
-                <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-                    <CheckCircle className="h-5 w-5 text-emerald-600 flex-shrink-0" />
-                    <div>
-                        <p className="font-medium text-emerald-800">Batch Generated Successfully</p>
-                        <p className="text-sm text-emerald-600">{batchResults.length} units recorded</p>
+                <Card className="border-green-800 bg-green-900/20">
+                    <div className="flex items-center gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                        <div>
+                            <p className="font-medium text-zinc-100">Batch registered successfully</p>
+                            <p className="text-sm text-zinc-400">{batchResults.length} products created</p>
+                        </div>
                     </div>
-                </div>
+                </Card>
             )}
 
             {error && (
-                <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                    <p className="text-red-800">{error}</p>
-                </div>
+                <Card className="border-red-800 bg-red-900/20">
+                    <div className="flex items-center gap-3">
+                        <AlertCircle className="h-5 w-5 text-red-400" />
+                        <p className="text-zinc-100">{error}</p>
+                    </div>
+                </Card>
             )}
 
             {/* Results View */}
             {batchResults.length > 0 ? (
                 <Card>
                     <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <CardTitle>Generated IDs</CardTitle>
-                                <CardDescription>{batchResults.length} units created</CardDescription>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button variant="secondary" onClick={resetForm}>
-                                    New Batch
-                                </Button>
-                                <Button onClick={() => window.print()}>
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    Print Labels
-                                </Button>
-                            </div>
-                        </div>
+                        <CardTitle>Generated product IDs</CardTitle>
+                        <CardDescription>{batchResults.length} products ready for labeling</CardDescription>
                     </CardHeader>
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[500px] overflow-y-auto">
                         {batchResults.map((prod, idx) => (
                             <div
                                 key={idx}
-                                className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col items-center text-center"
+                                className="bg-zinc-800/50 p-3 rounded-lg flex flex-col items-center text-center"
                             >
-                                <div className="bg-white p-2 rounded border border-slate-100 mb-2">
+                                <div className="bg-white p-2 rounded mb-2">
                                     <QRCode
-                                        size={80}
+                                        size={72}
                                         value={prod.productId}
                                         style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
                                         viewBox="0 0 256 256"
                                     />
                                 </div>
-                                <span className="text-xs font-mono text-slate-600 bg-slate-100 px-2 py-1 rounded w-full truncate">
+                                <span className="text-xs font-mono text-zinc-400 truncate w-full">
                                     {prod.productId}
                                 </span>
                             </div>
@@ -142,10 +130,15 @@ export const ManufacturerDashboard = () => {
             ) : (
                 /* Form View */
                 <Card>
-                    <form onSubmit={handleBatchSubmit} className="space-y-6">
+                    <CardHeader>
+                        <CardTitle>Batch details</CardTitle>
+                        <CardDescription>Enter product information to generate QR codes</CardDescription>
+                    </CardHeader>
+
+                    <form onSubmit={handleBatchSubmit} className="space-y-5">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Input
-                                label="Product Name"
+                                label="Product name"
                                 name="name"
                                 placeholder="e.g. Amoxicillin 500mg"
                                 value={formData.name}
@@ -153,7 +146,7 @@ export const ManufacturerDashboard = () => {
                                 required
                             />
                             <Input
-                                label="Batch Number"
+                                label="Batch number"
                                 name="batchNumber"
                                 placeholder="e.g. BATCH-2024-001"
                                 value={formData.batchNumber}
@@ -161,7 +154,7 @@ export const ManufacturerDashboard = () => {
                                 required
                             />
                             <Input
-                                label="Manufacturing Date"
+                                label="Manufacturing date"
                                 name="mfgDate"
                                 type="date"
                                 value={formData.mfgDate}
@@ -169,7 +162,7 @@ export const ManufacturerDashboard = () => {
                                 required
                             />
                             <Input
-                                label="Expiry Date"
+                                label="Expiry date"
                                 name="expDate"
                                 type="date"
                                 value={formData.expDate}
@@ -179,23 +172,23 @@ export const ManufacturerDashboard = () => {
                         </div>
 
                         <Input
-                            label="Quantity (Units to Generate)"
+                            label="Quantity"
                             name="count"
                             type="number"
                             min="1"
                             max="1000"
-                            placeholder="e.g. 100"
+                            placeholder="Number of units to generate"
                             value={formData.count}
                             onChange={handleChange}
                             required
                         />
-                        <p className="text-xs text-slate-500 -mt-4">
+                        <p className="text-xs text-zinc-500 -mt-3">
                             Maximum 1000 units per batch
                         </p>
 
                         <div className="flex justify-end pt-2">
                             <Button type="submit" loading={loading} size="lg">
-                                {loading ? 'Generating...' : `Generate ${formData.count || ''} QR Codes`}
+                                {loading ? 'Generating...' : 'Generate QR codes'}
                             </Button>
                         </div>
                     </form>

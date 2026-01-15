@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Search, CheckCircle, AlertTriangle, Box, Truck, Calendar, XCircle } from 'lucide-react';
+import { ShieldCheck, Search, CheckCircle, AlertCircle, Package, Truck, Calendar, Clock } from 'lucide-react';
 import { Scanner } from './Scanner';
 import { DashboardShell } from './layout/DashboardShell';
 import { Button, Card, CardHeader, CardTitle, CardDescription, Input, Select, Textarea, Badge } from './ui';
@@ -57,14 +57,7 @@ export const DistributorDashboard = () => {
 
         try {
             const response = await fetch(`/api/product/${encodeURIComponent(id)}`);
-            const contentType = response.headers.get('content-type');
-
-            let data;
-            if (contentType && contentType.includes('application/json')) {
-                data = await response.json();
-            } else {
-                throw new Error('Product not found');
-            }
+            const data = await response.json();
 
             if (!response.ok) throw new Error(data.message || 'Product not found');
 
@@ -74,7 +67,7 @@ export const DistributorDashboard = () => {
                 history[history.length - 1].status === 'Manufactured';
 
             if (history.some(h => h.status === 'Received at Pharmacy')) {
-                throw new Error('Product already received at pharmacy');
+                throw new Error('This product has already been received at its destination');
             }
 
             const currentUserId = localStorage.getItem('userId');
@@ -104,22 +97,25 @@ export const DistributorDashboard = () => {
     };
 
     const statusOptions = [
-        { value: 'In Transit', label: 'In Transit' },
-        { value: 'Received at Pharmacy', label: 'Received at Pharmacy' }
+        { value: 'In Transit', label: 'In transit' },
+        { value: 'Received at Pharmacy', label: 'Received at pharmacy' }
     ];
 
     return (
         <DashboardShell
-            title="Verification Portal"
-            description="Scan incoming units to verify authenticity"
+            title="Verify products"
+            description="Scan or search to verify incoming products"
             icon={ShieldCheck}
         >
-            {/* Search Bar */}
+            {/* Search */}
             <Card padding="md">
                 <form onSubmit={handleSearch} className="flex gap-3">
-                    <div className="flex-1">
-                        <Input
-                            placeholder="Enter or scan Product ID..."
+                    <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                        <input
+                            type="text"
+                            placeholder="Enter product ID"
+                            className="w-full pl-10 pr-4 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                         />
@@ -128,53 +124,31 @@ export const DistributorDashboard = () => {
                         Scan QR
                     </Button>
                     <Button type="submit" loading={loading}>
-                        <Search className="h-4 w-4 mr-2" />
                         Verify
                     </Button>
                 </form>
             </Card>
 
-            {/* Loading State */}
-            {loading && (
-                <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3" />
-                    <p className="text-slate-500">Verifying...</p>
-                </div>
-            )}
-
-            {/* Error State */}
+            {/* Status Messages */}
             {error && (
-                <Card className={error.includes('already') ? 'border-blue-200 bg-blue-50' : 'border-red-200 bg-red-50'}>
-                    <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-full ${error.includes('already') ? 'bg-blue-100' : 'bg-red-100'}`}>
-                            {error.includes('already') ? (
-                                <CheckCircle className="h-6 w-6 text-blue-600" />
-                            ) : (
-                                <XCircle className="h-6 w-6 text-red-600" />
-                            )}
-                        </div>
+                <Card className="border-red-800 bg-red-900/20">
+                    <div className="flex items-center gap-3">
+                        <AlertCircle className="h-5 w-5 text-red-400" />
                         <div>
-                            <h3 className={`font-semibold ${error.includes('already') ? 'text-blue-800' : 'text-red-800'}`}>
-                                {error.includes('already') ? 'Already Processed' : 'Verification Failed'}
-                            </h3>
-                            <p className={`text-sm ${error.includes('already') ? 'text-blue-600' : 'text-red-600'}`}>
-                                {error}
-                            </p>
+                            <p className="font-medium text-zinc-100">Unable to process</p>
+                            <p className="text-sm text-zinc-400">{error}</p>
                         </div>
                     </div>
                 </Card>
             )}
 
-            {/* Success State */}
             {updateSuccess && (
-                <Card className="border-emerald-200 bg-emerald-50">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-full bg-emerald-100">
-                            <CheckCircle className="h-6 w-6 text-emerald-600" />
-                        </div>
+                <Card className="border-green-800 bg-green-900/20">
+                    <div className="flex items-center gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-400" />
                         <div>
-                            <h3 className="font-semibold text-emerald-800">Update Complete</h3>
-                            <p className="text-sm text-emerald-600">Product status updated successfully</p>
+                            <p className="font-medium text-zinc-100">Status updated</p>
+                            <p className="text-sm text-zinc-400">The product status has been recorded</p>
                         </div>
                     </div>
                 </Card>
@@ -182,134 +156,156 @@ export const DistributorDashboard = () => {
 
             {/* Verification Result */}
             {verificationResult && (
-                <div className="space-y-4">
-                    {/* Product Info Card */}
-                    <Card>
-                        <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <CardTitle>{verificationResult.product.name}</CardTitle>
-                                    <CardDescription>
-                                        Batch: {verificationResult.product.batchNumber}
-                                    </CardDescription>
-                                </div>
-                                <Badge variant={verificationResult.isAuthentic ? 'success' : 'warning'}>
-                                    {verificationResult.isAuthentic ? 'Authentic' : 'Suspicious'}
-                                </Badge>
-                            </div>
-                        </CardHeader>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div>
-                                <p className="text-xs text-slate-500 uppercase font-medium">Manufacturer</p>
-                                <p className="text-sm text-slate-800 flex items-center gap-1 mt-1">
-                                    <Box className="h-4 w-4 text-slate-400" />
-                                    {verificationResult.product.manufacturer?.companyName || 'Unknown'}
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-slate-500 uppercase font-medium">Mfg Date</p>
-                                <p className="text-sm text-slate-800 flex items-center gap-1 mt-1">
-                                    <Calendar className="h-4 w-4 text-slate-400" />
-                                    {new Date(verificationResult.product.mfgDate).toLocaleDateString()}
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-slate-500 uppercase font-medium">Expiry</p>
-                                <p className="text-sm text-slate-800 flex items-center gap-1 mt-1">
-                                    <Calendar className="h-4 w-4 text-slate-400" />
-                                    {new Date(verificationResult.product.expDate).toLocaleDateString()}
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-slate-500 uppercase font-medium">Status</p>
-                                <p className="text-sm text-slate-800 mt-1">
-                                    {verificationResult.product.currentStatus}
-                                </p>
-                            </div>
-                        </div>
-                    </Card>
-
-                    {/* Update Form */}
-                    {canUpdate && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Product Details */}
+                    <div className="lg:col-span-2 space-y-6">
                         <Card>
-                            {!showUpdateForm ? (
-                                <Button size="lg" className="w-full" onClick={() => setShowUpdateForm(true)}>
-                                    <Truck className="h-4 w-4 mr-2" />
-                                    Update Tracking Status
-                                </Button>
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle>Log Movement</CardTitle>
-                                        <Button variant="ghost" size="sm" onClick={() => setShowUpdateForm(false)}>
-                                            Cancel
-                                        </Button>
+                            <CardHeader>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <CardTitle>{verificationResult.product.name}</CardTitle>
+                                        <CardDescription>
+                                            Batch: {verificationResult.product.batchNumber}
+                                        </CardDescription>
                                     </div>
-
-                                    <Select
-                                        label="Status"
-                                        options={statusOptions}
-                                        placeholder="Select status..."
-                                        value={updateStatus}
-                                        onChange={(e) => setUpdateStatus(e.target.value)}
-                                    />
-
-                                    <Textarea
-                                        label="Notes (Optional)"
-                                        placeholder="e.g. Batch verified, condition good"
-                                        rows={2}
-                                        value={updateNotes}
-                                        onChange={(e) => setUpdateNotes(e.target.value)}
-                                    />
-
-                                    <Button
-                                        variant="success"
-                                        size="lg"
-                                        className="w-full"
-                                        onClick={handleUpdateSubmit}
-                                        disabled={!updateStatus}
-                                        loading={loading}
-                                    >
-                                        <CheckCircle className="h-4 w-4 mr-2" />
-                                        Confirm Update
-                                    </Button>
+                                    <Badge variant={verificationResult.isAuthentic ? 'success' : 'warning'}>
+                                        {verificationResult.isAuthentic ? 'Verified' : 'Review required'}
+                                    </Badge>
                                 </div>
-                            )}
+                            </CardHeader>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div>
+                                    <p className="text-xs text-zinc-500 mb-1">Manufacturer</p>
+                                    <p className="text-sm text-zinc-200">
+                                        {verificationResult.product.manufacturer?.companyName || 'Unknown'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-zinc-500 mb-1">Manufactured</p>
+                                    <p className="text-sm text-zinc-200">
+                                        {new Date(verificationResult.product.mfgDate).toLocaleDateString()}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-zinc-500 mb-1">Expires</p>
+                                    <p className="text-sm text-zinc-200">
+                                        {new Date(verificationResult.product.expDate).toLocaleDateString()}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-zinc-500 mb-1">Current status</p>
+                                    <p className="text-sm text-zinc-200">
+                                        {verificationResult.product.currentStatus}
+                                    </p>
+                                </div>
+                            </div>
                         </Card>
-                    )}
 
-                    {/* Activity Timeline */}
-                    <Card>
-                        <CardTitle className="mb-4">Recent Activity</CardTitle>
-                        <div className="space-y-3">
-                            {verificationResult.history.slice(0, 5).map((event, idx) => (
-                                <div key={idx} className="flex gap-3">
-                                    <div className="flex flex-col items-center">
-                                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                                        {idx !== verificationResult.history.slice(0, 5).length - 1 && (
-                                            <div className="w-0.5 flex-1 bg-slate-200 mt-1" />
-                                        )}
+                        {/* Activity History */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Activity history</CardTitle>
+                            </CardHeader>
+                            <div className="space-y-4">
+                                {verificationResult.history.map((event, idx) => (
+                                    <div key={idx} className="flex gap-3">
+                                        <div className="flex flex-col items-center">
+                                            <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5" />
+                                            {idx !== verificationResult.history.length - 1 && (
+                                                <div className="w-0.5 flex-1 bg-zinc-700 mt-1" />
+                                            )}
+                                        </div>
+                                        <div className="pb-4">
+                                            <p className="text-sm font-medium text-zinc-200">{event.status}</p>
+                                            <p className="text-xs text-zinc-500">
+                                                {event.handler?.companyName || 'System'} · {new Date(event.timestamp).toLocaleString()}
+                                            </p>
+                                            {event.notes && (
+                                                <p className="text-xs text-zinc-400 mt-1">{event.notes}</p>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="pb-3">
-                                        <p className="text-sm font-medium text-slate-800">{event.status}</p>
-                                        <p className="text-xs text-slate-500">
-                                            {event.handler?.companyName || 'Unknown'} • {new Date(event.timestamp).toLocaleString()}
-                                        </p>
-                                        {event.notes && (
-                                            <p className="text-xs text-slate-400 mt-1 italic">"{event.notes}"</p>
-                                        )}
+                                ))}
+                            </div>
+                        </Card>
+                    </div>
+
+                    {/* Update Form Sidebar */}
+                    {canUpdate && (
+                        <div className="lg:col-span-1">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Update status</CardTitle>
+                                    <CardDescription>Record the current location of this product</CardDescription>
+                                </CardHeader>
+
+                                {!showUpdateForm ? (
+                                    <Button className="w-full" onClick={() => setShowUpdateForm(true)}>
+                                        <Truck className="h-4 w-4 mr-2" />
+                                        Update tracking
+                                    </Button>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <Select
+                                            label="Status"
+                                            options={statusOptions}
+                                            placeholder="Select status"
+                                            value={updateStatus}
+                                            onChange={(e) => setUpdateStatus(e.target.value)}
+                                        />
+
+                                        <Textarea
+                                            label="Notes (optional)"
+                                            placeholder="Add any relevant notes"
+                                            rows={3}
+                                            value={updateNotes}
+                                            onChange={(e) => setUpdateNotes(e.target.value)}
+                                        />
+
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                className="flex-1"
+                                                onClick={() => setShowUpdateForm(false)}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                className="flex-1"
+                                                onClick={handleUpdateSubmit}
+                                                disabled={!updateStatus}
+                                                loading={loading}
+                                            >
+                                                Confirm
+                                            </Button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                )}
+                            </Card>
                         </div>
-                    </Card>
+                    )}
                 </div>
             )}
 
             {/* Scanner Modal */}
             {showScanner && (
-                <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-6">
+                    <div className="w-full max-w-md">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-medium text-zinc-100">Scan QR code</h2>
+                            <button
+                                onClick={() => setShowScanner(false)}
+                                className="text-zinc-400 hover:text-zinc-100"
+                            >
+                                Close
+                            </button>
+                        </div>
+                        <div className="bg-zinc-900 rounded-xl overflow-hidden aspect-square">
+                            <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />
+                        </div>
+                    </div>
+                </div>
             )}
         </DashboardShell>
     );

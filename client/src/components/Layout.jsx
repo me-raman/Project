@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Pill, Twitter, Github, Linkedin, Shield } from 'lucide-react';
+import { Menu, X, Pill, ChevronRight } from 'lucide-react';
 import { Login } from './Login';
 import { SignUp } from './SignUp';
 
-export const Navbar = () => {
+export const Navbar = ({ onLoginClick }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
     const [showSignup, setShowSignup] = useState(false);
     const [user, setUser] = useState(null);
+    const [scrolled, setScrolled] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 10);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -53,79 +62,125 @@ export const Navbar = () => {
         window.location.reload();
     };
 
+    const openLogin = () => {
+        setIsOpen(false);
+        setShowLogin(true);
+    };
+
+    const openSignup = () => {
+        setIsOpen(false);
+        setShowSignup(true);
+    };
+
+    // Expose openLogin to parent via onLoginClick callback
+    useEffect(() => {
+        if (onLoginClick) {
+            window.openLoginModal = openLogin;
+        }
+    }, [onLoginClick]);
+
     return (
         <>
-            <nav className="fixed w-full top-0 z-50 bg-[#0A0F14] border-b border-white/10">
-                <div className="max-w-[1400px] mx-auto px-6">
-                    <div className="flex justify-between h-14">
-                        {/* System ID */}
-                        <div className="flex items-center gap-3">
-                            <Shield className="h-5 w-5 text-blue-500" />
-                            <span className="text-sm font-mono-data tracking-[0.3em] uppercase text-[#E6EDF3]">
-                                PHARMATRACE / SYS_V1.0
+            <nav className={`fixed w-full top-0 z-50 transition-all duration-300 ${scrolled
+                    ? 'bg-[#0c0d10]/90 backdrop-blur-xl border-b border-white/5'
+                    : 'bg-transparent'
+                }`}>
+                <div className="max-w-6xl mx-auto px-4 sm:px-6">
+                    <div className="flex justify-between items-center h-16">
+                        {/* Brand */}
+                        <div className="flex items-center gap-2.5">
+                            <div className="p-1.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
+                                <Pill className="h-4 w-4 text-white" />
+                            </div>
+                            <span className="text-base font-semibold text-white">
+                                PharmaTrace
                             </span>
                         </div>
 
-                        {/* Operational Controls */}
-                        <div className="hidden md:flex items-center gap-6">
+                        {/* Desktop Navigation */}
+                        <div className="hidden md:flex items-center gap-3">
                             {user ? (
-                                <div className="flex items-center gap-6">
-                                    <div className="flex flex-col items-end">
-                                        <span className="text-[10px] uppercase tracking-widest text-[#9BA4AE]">Authenticated User</span>
-                                        <span className="text-xs font-mono-data text-blue-400">{user.name} / {user.role.toUpperCase()}</span>
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass">
+                                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                        <span className="text-sm text-zinc-300">{user.name}</span>
+                                        <span className="text-xs text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full">{user.role}</span>
                                     </div>
                                     <button
                                         onClick={handleLogout}
-                                        className="text-[10px] uppercase tracking-widest text-[#6B7280] font-semibold border border-white/10 px-3 py-1 bg-white/5"
+                                        className="text-sm text-zinc-400 hover:text-white transition-colors"
                                     >
-                                        TERMINATE
+                                        Sign out
                                     </button>
                                 </div>
                             ) : (
                                 <>
                                     <button
-                                        onClick={() => setShowLogin(true)}
-                                        className="text-[10px] uppercase tracking-widest text-[#E6EDF3] font-semibold"
+                                        onClick={openLogin}
+                                        className="text-sm text-zinc-300 hover:text-white px-4 py-2 transition-colors"
                                     >
-                                        LOGIN
+                                        Sign in
                                     </button>
                                     <button
-                                        onClick={() => setShowSignup(true)}
-                                        className="text-[10px] uppercase tracking-widest bg-blue-600 text-white font-semibold px-4 py-1.5"
+                                        onClick={openSignup}
+                                        className="text-sm font-medium text-white px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all shadow-lg shadow-blue-500/20"
                                     >
-                                        INITIALIZE
+                                        Get started
                                     </button>
                                 </>
                             )}
                         </div>
 
-                        {/* Mobile Access */}
-                        <div className="md:hidden flex items-center">
-                            <button
-                                onClick={() => setIsOpen(!isOpen)}
-                                className="text-[#9BA4AE]"
-                            >
-                                {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                            </button>
-                        </div>
+                        {/* Mobile Menu Button */}
+                        <button
+                            onClick={() => setIsOpen(!isOpen)}
+                            className="md:hidden p-2 text-zinc-400 hover:text-white transition-colors"
+                        >
+                            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                        </button>
                     </div>
                 </div>
 
-                {/* Mobile Menu Overlay */}
+                {/* Mobile Menu */}
                 {isOpen && (
-                    <div className="md:hidden bg-[#0F1720] border-b border-white/10 px-6 py-6 space-y-4">
-                        <button
-                            onClick={() => { setIsOpen(false); setShowLogin(true); }}
-                            className="w-full text-left text-[10px] uppercase tracking-widest text-[#E6EDF3] font-semibold"
-                        >
-                            LOGIN
-                        </button>
-                        <button
-                            onClick={() => { setIsOpen(false); setShowSignup(true); }}
-                            className="w-full text-left text-[10px] uppercase tracking-widest text-blue-400 font-semibold"
-                        >
-                            INITIALIZE SYSTEM
-                        </button>
+                    <div className="md:hidden absolute top-16 left-0 right-0 glass border-b border-white/5 animate-slide-down">
+                        <div className="p-4 space-y-2">
+                            {user ? (
+                                <>
+                                    <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5">
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
+                                            {user.name.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-white">{user.name}</p>
+                                            <p className="text-xs text-zinc-500">{user.role}</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="w-full text-left text-sm text-zinc-400 p-3 rounded-lg hover:bg-white/5 transition-colors"
+                                    >
+                                        Sign out
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={openLogin}
+                                        className="w-full flex items-center justify-between text-sm text-zinc-300 p-3 rounded-lg hover:bg-white/5 transition-colors"
+                                    >
+                                        Sign in
+                                        <ChevronRight className="h-4 w-4 text-zinc-500" />
+                                    </button>
+                                    <button
+                                        onClick={openSignup}
+                                        className="w-full text-sm font-medium text-white p-3 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 transition-all"
+                                    >
+                                        Get started
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
                 )}
             </nav>
@@ -151,41 +206,18 @@ export const Navbar = () => {
 
 export const Footer = () => {
     return (
-        <footer className="bg-[#0A0F14] border-t border-white/5 py-10 mt-20">
-            <div className="max-w-[1400px] mx-auto px-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-                    <div>
-                        <div className="flex items-center gap-2 mb-4">
-                            <Shield className="h-4 w-4 text-blue-500" />
-                            <span className="text-xs font-mono-data tracking-[0.2em] uppercase">PharmaTrace</span>
+        <footer className="border-t border-white/5 py-8 mt-16">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <div className="p-1 bg-gradient-to-br from-blue-500 to-purple-600 rounded">
+                            <Pill className="h-3 w-3 text-white" />
                         </div>
-                        <p className="text-[10px] uppercase tracking-wider text-[#6B7280] leading-relaxed">
-                            Cryptographic Supply Chain Terminal.<br />
-                            Production Environment.
-                        </p>
+                        <span className="text-sm font-medium text-zinc-500">PharmaTrace</span>
                     </div>
-
-                    {['System', 'Compliance', 'Security'].map(title => (
-                        <div key={title}>
-                            <h4 className="text-[10px] uppercase tracking-[0.2em] text-[#9BA4AE] font-bold mb-4">{title}</h4>
-                            <ul className="space-y-2 text-[10px] uppercase tracking-widest text-[#6B7280]">
-                                <li><a href="#">Gateway</a></li>
-                                <li><a href="#">Audit Logs</a></li>
-                                <li><a href="#">Protocols</a></li>
-                            </ul>
-                        </div>
-                    ))}
-                </div>
-
-                <div className="mt-12 pt-8 border-t border-white/5 flex justify-between items-center">
-                    <p className="text-[10px] font-mono-data text-[#6B7280]">
-                        COPYRIGHT © 2026 / ENCRYPTED_LEDGER
+                    <p className="text-sm text-zinc-600">
+                        © 2026 PharmaTrace. All rights reserved.
                     </p>
-                    <div className="flex gap-4">
-                        <Twitter className="h-3.5 w-3.5 text-[#6B7280]" />
-                        <Github className="h-3.5 w-3.5 text-[#6B7280]" />
-                        <Linkedin className="h-3.5 w-3.5 text-[#6B7280]" />
-                    </div>
                 </div>
             </div>
         </footer>

@@ -6,3 +6,27 @@ Server running on port 3000
 [DEBUG] Existing Batch Found: NO
 [TRACK DEBUG] Request received for Product ID: PROD-batch-005-586059
 [TRACK DEBUG] Request received for Product ID: PROD-batch-005-586059
+
+================================
+[SMS SIMULATION] To: 7061980905
+[SMS SIMULATION] OTP: 986401
+================================
+
+
+================================
+[SMS SIMULATION] To: 7061980905
+[SMS SIMULATION] OTP: 753550
+================================
+
+
+================================
+[SMS SIMULATION] To: 7061980905
+[SMS SIMULATION] OTP: 533866
+================================
+
+
+================================
+[SMS SIMULATION] To: 1234567899
+[SMS SIMULATION] OTP: 556096
+================================
+

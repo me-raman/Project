@@ -1,8 +1,8 @@
 import React from 'react';
 
 /**
- * Command Center Badge
- * High Contrast, Static.
+ * Badge - Subtle status indicators
+ * Used sparingly for key status information
  */
 export const Badge = ({
     children,
@@ -10,15 +10,15 @@ export const Badge = ({
     className = ''
 }) => {
     const variants = {
-        default: 'bg-white/10 text-[#E6EDF3] border-white/5',
-        success: 'bg-[#16A34A]/20 text-[#16A34A] border-[#16A34A]/30',
-        warning: 'bg-[#D97706]/20 text-[#D97706] border-[#D97706]/30',
-        danger: 'bg-[#DC2626]/20 text-[#DC2626] border-[#DC2626]/30',
-        info: 'bg-[#2563EB]/20 text-[#2563EB] border-[#2563EB]/30'
+        default: 'bg-zinc-800 text-zinc-300',
+        success: 'bg-green-900/50 text-green-400 border border-green-800',
+        warning: 'bg-amber-900/50 text-amber-400 border border-amber-800',
+        danger: 'bg-red-900/50 text-red-400 border border-red-800',
+        info: 'bg-blue-900/50 text-blue-400 border border-blue-800'
     };
 
     return (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-semibold uppercase border tracking-tighter ${variants[variant]} ${className}`}>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${variants[variant]} ${className}`}>
             {children}
         </span>
     );

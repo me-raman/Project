@@ -1,8 +1,7 @@
 import React from 'react';
 
 /**
- * Command Center Card
- * Glass-morphism, Static, Sharp.
+ * Card - Glass morphism surface
  */
 export const Card = ({
     children,
@@ -12,14 +11,14 @@ export const Card = ({
 }) => {
     const paddings = {
         none: '',
-        sm: 'p-3',
+        sm: 'p-4',
         md: 'p-5',
-        lg: 'p-8'
+        lg: 'p-6'
     };
 
     return (
         <div
-            className={`glass-surface rounded-md shadow-sm ${paddings[padding]} ${className}`}
+            className={`glass rounded-xl ${paddings[padding]} ${className}`}
             {...props}
         >
             {children}
@@ -31,7 +30,7 @@ export const Card = ({
  * Card Header
  */
 export const CardHeader = ({ children, className = '' }) => (
-    <div className={`border-b border-white/5 pb-3 mb-4 ${className}`}>
+    <div className={`mb-4 ${className}`}>
         {children}
     </div>
 );
@@ -40,7 +39,7 @@ export const CardHeader = ({ children, className = '' }) => (
  * Card Title
  */
 export const CardTitle = ({ children, className = '' }) => (
-    <h3 className={`text-sm font-semibold text-[#E6EDF3] tracking-wide uppercase ${className}`}>
+    <h3 className={`text-base font-semibold text-white ${className}`}>
         {children}
     </h3>
 );
@@ -49,7 +48,7 @@ export const CardTitle = ({ children, className = '' }) => (
  * Card Description
  */
 export const CardDescription = ({ children, className = '' }) => (
-    <p className={`text-xs text-[#9BA4AE] mt-0.5 ${className}`}>
+    <p className={`text-sm text-zinc-400 mt-1 ${className}`}>
         {children}
     </p>
 );

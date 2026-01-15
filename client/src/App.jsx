@@ -4,7 +4,7 @@ import { Home } from './pages/Home';
 import { ProductDetails } from './pages/ProductDetails';
 
 function App() {
-  const [view, setView] = useState('home'); // 'home' or 'details'
+  const [view, setView] = useState('home');
   const [productData, setProductData] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -22,22 +22,17 @@ function App() {
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
-        // Fallback if server returns HTML (e.g. unhandled 404)
         throw new Error('Invalid QR Code or Product Not Found');
       }
 
       if (response.ok) {
-
-        // Critical Check: Only allow customers to view details if product is Received at Pharmacy
         const isReceivedAtPharmacy = data.history.some(h => h.status === 'Received at Pharmacy');
 
         if (!isReceivedAtPharmacy) {
-          // Use a specific error string that Home.jsx will recognize
           setError('Product in supply chain (not yet at pharmacy)');
         } else {
           setProductData(data.product);
 
-          // Transform backend history to frontend events format
           const formattedEvents = data.history.map(h => ({
             stage: h.status,
             handler: h.handler?.companyName || 'Unknown',
@@ -68,13 +63,25 @@ function App() {
     setError('');
   };
 
+  const handleOpenLogin = () => {
+    // Trigger login modal via global function set by Navbar
+    if (window.openLoginModal) {
+      window.openLoginModal();
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-white font-sans text-gray-900">
-      <Navbar />
+    <div className="min-h-screen bg-[#0c0d10] font-sans text-zinc-100">
+      <Navbar onLoginClick={handleOpenLogin} />
 
       <main>
         {view === 'home' && (
-          <Home onSearch={handleSearch} loading={loading} error={error} />
+          <Home
+            onSearch={handleSearch}
+            loading={loading}
+            error={error}
+            onOpenLogin={handleOpenLogin}
+          />
         )}
 
         {view === 'details' && productData && (
