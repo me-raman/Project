@@ -103,9 +103,10 @@ router.post('/batch', auth, authorize('Manufacturer'), async (req, res) => {
         const trackings = [];
 
         for (let i = 0; i < quantity; i++) {
-            const randomSuffix = Math.floor(100000 + Math.random() * 900000).toString();
-            const productId = `PROD-${batchNumber}-${randomSuffix}`;
-            const serialNumber = `SN-${Date.now()}-${i}`;
+            // Use timestamp + counter for guaranteed uniqueness
+            const timestamp = Date.now();
+            const productId = `PROD-${batchNumber}-${timestamp}-${i}`;
+            const serialNumber = `SN-${timestamp}-${i}`;
 
             const newProduct = {
                 productId,
