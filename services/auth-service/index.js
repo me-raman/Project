@@ -7,7 +7,8 @@ const rateLimit = require('express-rate-limit');
 dotenv.config({ path: '../../.env' });
 
 const app = express();
-const PORT = process.env.AUTH_SERVICE_PORT || 3001;
+// Render requires binding to process.env.PORT
+const PORT = process.env.PORT || process.env.AUTH_SERVICE_PORT || 3001;
 
 // Validate required env vars
 if (!process.env.JWT_SECRET) {
