@@ -33,14 +33,34 @@ const apiLimiter = rateLimit({
 });
 app.use('/api', apiLimiter);
 
-// Simple logging middleware
+// Wake up all services (fire-and-forget to prevent cold start delays)
+const wakeUpServices = () => {
+    const services = [
+        { name: 'auth', url: `${AUTH_SERVICE}/health` },
+        { name: 'product', url: `${PRODUCT_SERVICE}/health` },
+        { name: 'tracking', url: `${TRACKING_SERVICE}/health` }
+    ];
+
+    services.forEach(service => {
+        fetch(service.url)
+            .then(() => console.log(`[Gateway] Warmed up ${service.name} service`))
+            .catch(() => console.log(`[Gateway] Failed to warm ${service.name} service`));
+    });
+};
+
+// Simple logging middleware + warm up services on each request
 app.use((req, res, next) => {
     console.log(`[Gateway] ${req.method} ${req.url}`);
+    // Wake up all services in background (non-blocking)
+    wakeUpServices();
     next();
 });
 
-// Health check for gateway
-app.get('/health', (req, res) => {
+// Health check for gateway (also warms up all services)
+app.get('/health', async (req, res) => {
+    // Trigger wake-up for all services
+    wakeUpServices();
+
     res.json({
         service: 'api-gateway',
         status: 'healthy',
