@@ -1,0 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0A0F14;
+  --bg-secondary: #0F1720;
+  --text-primary: #E6EDF3;
+  --text-secondary: #9BA4AE;
+  --text-muted: #6B7280;
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Operational Data / IDs */
+.font-mono-data {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Glass-morphism Primitive */
+.glass-surface {
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--glass-border);
+}
+
+/* Global Zero-Animation Enforcement */
+* {
+  transition: none !important;
+  animation: none !important;
+  scroll-behavior: auto !important;
+  transform: none !important;
+  /* Block all scale/hover animations */
+}
+
+/* Reset buttons and interactive elements to not have default transitions */
+button,
+a,
+input,
+select,
+textarea {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Hide scrollbars but keep functionality */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1F2937;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #374151;
+}
+
+/* Typography Hierarchy */
+h1 {
+  font-size: 1.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+p,
+span,
+div {
+  line-height: 1.6;
+}
