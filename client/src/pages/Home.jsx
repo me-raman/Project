@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Shield, Globe, Zap, ScanLine, AlertCircle, Truck, Sparkles } from 'lucide-react';
 import { ManufacturerDashboard } from '../components/ManufacturerDashboard';
 import { DistributorDashboard } from '../components/DistributorDashboard';
+import { AdminDashboard } from '../components/AdminDashboard';
 import { Scanner } from '../components/Scanner';
 import { Button, Card, Badge } from '../components/ui';
 
@@ -32,6 +33,10 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
     const userRole = localStorage.getItem('userRole');
 
     // Role-based dashboard routing
+    if (userRole?.toLowerCase() === 'admin') {
+        return <AdminDashboard />;
+    }
+
     if (userRole?.toLowerCase() === 'manufacturer') {
         return <ManufacturerDashboard />;
     }
