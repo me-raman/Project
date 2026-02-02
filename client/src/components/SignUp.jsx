@@ -68,9 +68,9 @@ export const SignUp = ({ onClose, onLoginClick, onRegisterSuccess }) => {
                 throw new Error(data.message || 'Registration failed');
             }
 
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('userRole', data.role);
-            localStorage.setItem('userName', data.name);
+            sessionStorage.setItem('token', data.token);
+            sessionStorage.setItem('userRole', data.role);
+            sessionStorage.setItem('userName', data.name);
 
             if (onRegisterSuccess) {
                 onRegisterSuccess(data);
@@ -138,8 +138,8 @@ export const SignUp = ({ onClose, onLoginClick, onRegisterSuccess }) => {
                                     className="w-full flex items-center gap-4 p-4 rounded-xl glass hover:bg-white/5 transition-all text-left group"
                                 >
                                     <div className={`p-3 rounded-lg bg-gradient-to-br ${r.color === 'blue' ? 'from-blue-500/20 to-blue-600/10 text-blue-400' :
-                                            r.color === 'purple' ? 'from-purple-500/20 to-purple-600/10 text-purple-400' :
-                                                'from-cyan-500/20 to-cyan-600/10 text-cyan-400'
+                                        r.color === 'purple' ? 'from-purple-500/20 to-purple-600/10 text-purple-400' :
+                                            'from-cyan-500/20 to-cyan-600/10 text-cyan-400'
                                         }`}>
                                         <r.icon className="h-5 w-5" />
                                     </div>

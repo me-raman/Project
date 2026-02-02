@@ -95,10 +95,10 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
             const data = await response.json();
 
             if (response.ok) {
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('userRole', data.role);
-                localStorage.setItem('userName', data.name);
-                localStorage.setItem('userId', data.userId);
+                sessionStorage.setItem('token', data.token);
+                sessionStorage.setItem('userRole', data.role);
+                sessionStorage.setItem('userName', data.name);
+                sessionStorage.setItem('userId', data.userId);
 
                 if (onLoginSuccess) {
                     onLoginSuccess(data);
@@ -109,7 +109,7 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
             } else {
                 setError(data.message || 'Invalid OTP');
             }
-        } catch (err) {
+        } catch {
             setError('Failed to verify OTP');
         } finally {
             setLoading(false);

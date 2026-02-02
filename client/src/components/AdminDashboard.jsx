@@ -19,7 +19,7 @@ export const AdminDashboard = () => {
         setLoading(true);
         setError('');
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const headers = { 'x-auth-token': token };
 
             const [usersRes, statsRes] = await Promise.all([
@@ -47,7 +47,7 @@ export const AdminDashboard = () => {
 
     const handleUpdateUser = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const response = await fetch(`/api/auth/admin/users/${editingUser._id}`, {
                 method: 'PUT',
                 headers: {
@@ -75,7 +75,7 @@ export const AdminDashboard = () => {
 
     const handleDeleteUser = async (userId) => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const response = await fetch(`/api/auth/admin/users/${userId}`, {
                 method: 'DELETE',
                 headers: { 'x-auth-token': token }

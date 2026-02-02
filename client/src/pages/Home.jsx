@@ -14,7 +14,6 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
         const searchParams = new URLSearchParams(window.location.search);
         const searchQuery = searchParams.get('search');
         if (searchQuery) {
-            setQuery(searchQuery);
             onSearch(searchQuery);
         }
     }, [onSearch]);
@@ -30,7 +29,7 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
         onSearch(decodedText);
     };
 
-    const userRole = localStorage.getItem('userRole');
+    const userRole = sessionStorage.getItem('userRole');
 
     // Role-based dashboard routing
     if (userRole?.toLowerCase() === 'admin') {
@@ -95,7 +94,7 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
                     )}
 
                     {/* Search Form */}
-                    {localStorage.getItem('token') ? (
+                    {sessionStorage.getItem('token') ? (
                         <div className="max-w-lg mx-auto animate-slide-up">
                             <form onSubmit={handleSubmit}>
                                 {/* Mobile: Stack vertically */}

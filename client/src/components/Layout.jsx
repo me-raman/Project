@@ -20,7 +20,7 @@ export const Navbar = ({ onLoginClick }) => {
 
     useEffect(() => {
         const checkAuth = async () => {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             if (token) {
                 try {
                     const response = await fetch('/api/auth/verify', {
@@ -32,10 +32,10 @@ export const Navbar = ({ onLoginClick }) => {
                         const userData = await response.json();
                         setUser({ role: userData.role, name: userData.name });
                     } else {
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('userRole');
-                        localStorage.removeItem('userName');
-                        localStorage.removeItem('userId');
+                        sessionStorage.removeItem('token');
+                        sessionStorage.removeItem('userRole');
+                        sessionStorage.removeItem('userName');
+                        sessionStorage.removeItem('userId');
                         setUser(null);
                     }
                 } catch (err) {
@@ -55,9 +55,9 @@ export const Navbar = ({ onLoginClick }) => {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userName');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('userRole');
+        sessionStorage.removeItem('userName');
         setUser(null);
         window.location.reload();
     };
@@ -82,8 +82,8 @@ export const Navbar = ({ onLoginClick }) => {
     return (
         <>
             <nav className={`fixed w-full top-0 z-50 transition-all duration-300 ${scrolled
-                    ? 'bg-[#0c0d10]/90 backdrop-blur-xl border-b border-white/5'
-                    : 'bg-transparent'
+                ? 'bg-[#0c0d10]/90 backdrop-blur-xl border-b border-white/5'
+                : 'bg-transparent'
                 }`}>
                 <div className="max-w-6xl mx-auto px-4 sm:px-6">
                     <div className="flex justify-between items-center h-16">

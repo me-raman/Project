@@ -24,7 +24,7 @@ export const ManufacturerDashboard = () => {
 
     const fetchRecentBatches = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const response = await fetch('/api/product/manufacturer/recent', {
                 headers: { 'x-auth-token': token }
             });
@@ -50,7 +50,7 @@ export const ManufacturerDashboard = () => {
         setSuccess(false);
 
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const response = await fetch('/api/product/batch', {
                 method: 'POST',
                 headers: {

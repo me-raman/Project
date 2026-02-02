@@ -30,8 +30,8 @@ export const Scanner = ({ onScan, onClose }) => {
                             onScan(decodedText);
                         }
                     },
-                    (errorMessage) => {
-                        // ignore failures
+                    () => {
+                        // ignore scan failures
                     }
                 );
 

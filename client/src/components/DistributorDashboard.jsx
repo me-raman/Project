@@ -19,7 +19,7 @@ export const DistributorDashboard = () => {
 
     const fetchHistory = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const response = await fetch('/api/track/user/history', {
                 headers: { 'x-auth-token': token }
             });
@@ -41,7 +41,7 @@ export const DistributorDashboard = () => {
         if (!updateStatus) return;
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`/api/track/${verificationResult.product.productId}`, {
                 method: 'POST',
                 headers: {
@@ -90,7 +90,7 @@ export const DistributorDashboard = () => {
                 throw new Error('This product has already been received at its destination');
             }
 
-            const currentUserId = localStorage.getItem('userId');
+            const currentUserId = sessionStorage.getItem('userId');
             if (history.some(h => h.handler && h.handler._id === currentUserId)) {
                 throw new Error('You have already processed this product');
             }
