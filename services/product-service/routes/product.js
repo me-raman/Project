@@ -53,6 +53,87 @@ router.post('/', auth, authorize('Manufacturer'), async (req, res) => {
     }
 });
 
+// @route   GET /api/product/admin/batches
+// @desc    Get all batches (Admin only) grouped by batchNumber
+router.get('/admin/batches', auth, authorize('Admin'), async (req, res) => {
+    try {
+        const batches = await Product.aggregate([
+            { $sort: { createdAt: -1 } },
+            {
+                $group: {
+                    _id: '$batchNumber',
+                    name: { $first: '$name' },
+                    batchNumber: { $first: '$batchNumber' },
+                    manufacturer: { $first: '$manufacturer' },
+                    currentStatus: { $first: '$currentStatus' },
+                    createdAt: { $first: '$createdAt' },
+                    unitCount: { $sum: 1 }
+                }
+            },
+            { $sort: { createdAt: -1 } },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'manufacturer',
+                    foreignField: '_id',
+                    as: 'manufacturerInfo'
+                }
+            },
+            {
+                $addFields: {
+                    manufacturerName: { $arrayElemAt: ['$manufacturerInfo.companyName', 0] }
+                }
+            },
+            { $project: { manufacturerInfo: 0 } }
+        ]);
+
+        res.json(batches);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   GET /api/product/admin/stats
+// @desc    Get product statistics (Admin only)
+router.get('/admin/stats', auth, authorize('Admin'), async (req, res) => {
+    try {
+        const totalProducts = await Product.countDocuments();
+        const statusCounts = await Product.aggregate([
+            { $group: { _id: '$currentStatus', count: { $sum: 1 } } }
+        ]);
+
+        const byStatus = {};
+        statusCounts.forEach(s => { byStatus[s._id] = s.count; });
+
+        const totalBatches = await Product.distinct('batchNumber');
+
+        res.json({
+            totalProducts,
+            totalBatches: totalBatches.length,
+            byStatus
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   GET /api/product/admin/batch/:batchNumber
+// @desc    Get all units in a specific batch (Admin only)
+router.get('/admin/batch/:batchNumber', auth, authorize('Admin'), async (req, res) => {
+    try {
+        const products = await Product.find({ batchNumber: req.params.batchNumber })
+            .populate('manufacturer', 'companyName location')
+            .sort({ createdAt: -1 });
+
+        res.json(products);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // @route   GET /api/product/:id
 // @desc    Get product by Product ID (Public)
 router.get('/:id', async (req, res) => {
@@ -81,6 +162,11 @@ router.get('/:id', async (req, res) => {
 router.post('/batch', auth, authorize('Manufacturer'), async (req, res) => {
     const { name, batchNumber, mfgDate, expDate, count } = req.body;
     const quantity = parseInt(count) || 1;
+
+    // Validate expiry date is after manufacture date
+    if (mfgDate && expDate && new Date(expDate) <= new Date(mfgDate)) {
+        return res.status(400).json({ message: 'Expiry date must be after the manufacturing date' });
+    }
 
     try {
         const manufacturer = await User.findById(req.user.userId);
@@ -147,14 +233,28 @@ router.post('/batch', auth, authorize('Manufacturer'), async (req, res) => {
 });
 
 // @route   GET /api/product/manufacturer/recent
-// @desc    Get recent products for the current manufacturer
+// @desc    Get recent batches for the current manufacturer (grouped by batchNumber)
 router.get('/manufacturer/recent', auth, authorize('Manufacturer'), async (req, res) => {
     try {
-        const products = await Product.find({ manufacturer: req.user.userId })
-            .sort({ createdAt: -1 })
-            .limit(10);
+        const manufacturerId = new mongoose.Types.ObjectId(req.user.userId);
+        const batches = await Product.aggregate([
+            { $match: { manufacturer: manufacturerId } },
+            { $sort: { createdAt: -1 } },
+            {
+                $group: {
+                    _id: '$batchNumber',
+                    name: { $first: '$name' },
+                    batchNumber: { $first: '$batchNumber' },
+                    currentStatus: { $first: '$currentStatus' },
+                    createdAt: { $first: '$createdAt' },
+                    unitCount: { $sum: 1 }
+                }
+            },
+            { $sort: { createdAt: -1 } },
+            { $limit: 10 }
+        ]);
 
-        res.json(products);
+        res.json(batches);
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ message: 'Server error' });

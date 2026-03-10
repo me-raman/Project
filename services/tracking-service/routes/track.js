@@ -7,8 +7,8 @@ const Tracking = require('../models/Tracking');
 const User = require('../models/User');
 
 // @route   POST /api/track/:id
-// @desc    Add tracking update (Distributor, Pharmacy only)
-router.post('/:id', auth, authorize('Distributor', 'Pharmacy'), async (req, res) => {
+// @desc    Add tracking update (Admin, Distributor, Pharmacy only)
+router.post('/:id', auth, authorize('Admin', 'Distributor', 'Pharmacy'), async (req, res) => {
     const { status, location, notes } = req.body;
     const productId = req.params.id;
 
@@ -19,14 +19,14 @@ router.post('/:id', auth, authorize('Distributor', 'Pharmacy'), async (req, res)
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        // Business rule: Reject if already received at pharmacy
-        if (product.currentStatus === 'Received at Pharmacy') {
+        // Business rule: Reject if already received at pharmacy (unless Admin)
+        if (product.currentStatus === 'Received at Pharmacy' && req.user.role !== 'Admin') {
             return res.status(400).json({
                 message: 'Product has already been received at pharmacy. No further updates allowed.'
             });
         }
 
-        // Prevent distributors from updating more than once
+        // Prevent distributors from updating more than once (Admin bypasses this)
         if (req.user.role === 'Distributor') {
             const existingUpdate = await Tracking.findOne({
                 product: product._id,

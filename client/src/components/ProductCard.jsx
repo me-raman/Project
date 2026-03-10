@@ -42,12 +42,12 @@ export const ProductCard = ({ product }) => {
                         <DetailRow
                             icon={<Calendar className="h-5 w-5 text-emerald-500" />}
                             label="Manufacturing Date"
-                            value={product.mfgDate}
+                            value={product.mfgDate ? new Date(product.mfgDate).toLocaleDateString() : '—'}
                         />
                         <DetailRow
                             icon={<AlertCircle className="h-5 w-5 text-amber-500" />}
                             label="Expiry Date"
-                            value={product.expDate}
+                            value={product.expDate ? new Date(product.expDate).toLocaleDateString() : '—'}
                             isAlert
                         />
                     </div>

@@ -23,7 +23,172 @@ export const ProductDetails = ({ product, events, onBack }) => {
     const qualityScore = calculateQualityScore(product.productId);
 
     const handleDownload = () => {
-        window.print();
+        const printFrame = document.createElement('iframe');
+        printFrame.style.position = 'absolute';
+        printFrame.style.top = '-9999px';
+        printFrame.style.left = '-9999px';
+        document.body.appendChild(printFrame);
+
+        const doc = printFrame.contentDocument || printFrame.contentWindow.document;
+
+        const mfgDate = product.mfgDate ? new Date(product.mfgDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+        const expDate = product.expDate ? new Date(product.expDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+        const verifiedOn = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const manufacturer = product.manufacturer?.companyName || product.manufacturer || '—';
+
+        doc.open();
+        doc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Authenticity Certificate – ${product.name}</title>
+                <style>
+                    * { box-sizing: border-box; margin: 0; padding: 0; }
+                    body { font-family: Georgia, serif; background: #fff; color: #1a1a1a; padding: 40px; }
+                    .certificate {
+                        border: 3px solid #1e3a5f;
+                        border-radius: 12px;
+                        padding: 48px;
+                        max-width: 720px;
+                        margin: 0 auto;
+                        position: relative;
+                    }
+                    .inner-border {
+                        border: 1px solid #c0a060;
+                        border-radius: 8px;
+                        padding: 40px;
+                    }
+                    .header {
+                        text-align: center;
+                        margin-bottom: 32px;
+                        border-bottom: 1px solid #e0e0e0;
+                        padding-bottom: 24px;
+                    }
+                    .brand { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #1e3a5f; font-family: Arial, sans-serif; margin-bottom: 6px; }
+                    .title { font-size: 28px; color: #1e3a5f; font-weight: bold; margin-bottom: 4px; }
+                    .subtitle { font-size: 12px; color: #888; font-family: Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+                    .verified-badge {
+                        display: inline-block;
+                        background: #d4edda;
+                        color: #155724;
+                        border: 1px solid #c3e6cb;
+                        border-radius: 20px;
+                        padding: 4px 16px;
+                        font-size: 12px;
+                        font-family: Arial, sans-serif;
+                        font-weight: bold;
+                        margin-top: 10px;
+                        letter-spacing: 1px;
+                    }
+                    .product-name {
+                        text-align: center;
+                        font-size: 22px;
+                        font-weight: bold;
+                        color: #1a1a1a;
+                        margin: 28px 0 6px;
+                    }
+                    .manufacturer-name {
+                        text-align: center;
+                        font-size: 13px;
+                        color: #555;
+                        font-family: Arial, sans-serif;
+                        margin-bottom: 30px;
+                    }
+                    .details-grid {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 20px;
+                        margin-bottom: 28px;
+                    }
+                    .detail-box {
+                        background: #f8f9fa;
+                        border: 1px solid #e0e0e0;
+                        border-radius: 8px;
+                        padding: 14px 16px;
+                    }
+                    .detail-label {
+                        font-size: 10px;
+                        color: #888;
+                        letter-spacing: 1px;
+                        text-transform: uppercase;
+                        font-family: Arial, sans-serif;
+                        margin-bottom: 4px;
+                    }
+                    .detail-value {
+                        font-size: 14px;
+                        color: #1a1a1a;
+                        font-family: 'Courier New', monospace;
+                        word-break: break-all;
+                    }
+                    .detail-value.highlight { color: #c0392b; font-weight: bold; }
+                    .footer {
+                        text-align: center;
+                        border-top: 1px solid #e0e0e0;
+                        padding-top: 20px;
+                        font-size: 11px;
+                        color: #888;
+                        font-family: Arial, sans-serif;
+                    }
+                    .verified-on { font-style: italic; margin-top: 4px; }
+                </style>
+            </head>
+            <body>
+                <div class="certificate">
+                    <div class="inner-border">
+                        <div class="header">
+                            <div class="brand">PharmaTrace</div>
+                            <div class="title">Certificate of Authenticity</div>
+                            <div class="subtitle">Pharmaceutical Supply Chain Verification</div>
+                            <div class="verified-badge">✓ VERIFIED AUTHENTIC</div>
+                        </div>
+
+                        <div class="product-name">${product.name}</div>
+                        <div class="manufacturer-name">Manufactured by <strong>${manufacturer}</strong></div>
+
+                        <div class="details-grid">
+                            <div class="detail-box">
+                                <div class="detail-label">Product ID</div>
+                                <div class="detail-value">${product.productId}</div>
+                            </div>
+                            <div class="detail-box">
+                                <div class="detail-label">Batch Number</div>
+                                <div class="detail-value">${product.batchNumber}</div>
+                            </div>
+                            <div class="detail-box">
+                                <div class="detail-label">Serial Number</div>
+                                <div class="detail-value">${product.serialNumber}</div>
+                            </div>
+                            <div class="detail-box">
+                                <div class="detail-label">Current Status</div>
+                                <div class="detail-value">${product.currentStatus || 'Manufactured'}</div>
+                            </div>
+                            <div class="detail-box">
+                                <div class="detail-label">Manufacturing Date</div>
+                                <div class="detail-value">${mfgDate}</div>
+                            </div>
+                            <div class="detail-box">
+                                <div class="detail-label">Expiry Date</div>
+                                <div class="detail-value highlight">${expDate}</div>
+                            </div>
+                        </div>
+
+                        <div class="footer">
+                            This certificate confirms that the above product has been verified through the
+                            PharmaTrace blockchain-based pharmaceutical supply chain tracking system.
+                            <div class="verified-on">Verified on: ${verifiedOn}</div>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `);
+        doc.close();
+
+        setTimeout(() => {
+            printFrame.contentWindow.focus();
+            printFrame.contentWindow.print();
+            setTimeout(() => document.body.removeChild(printFrame), 1000);
+        }, 300);
     };
 
     const handleShare = async () => {

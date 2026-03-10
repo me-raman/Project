@@ -38,13 +38,28 @@ export const ManufacturerDashboard = () => {
     };
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        const updated = { ...formData, [name]: value };
+
+        // If manufacture date changes and is now after expiry date, clear expiry
+        if (name === 'mfgDate' && updated.expDate && value > updated.expDate) {
+            updated.expDate = '';
+        }
+
+        setFormData(updated);
         setError('');
         setSuccess(false);
     };
 
     const handleBatchSubmit = async (e) => {
         e.preventDefault();
+
+        // Validate expiry date is after manufacture date
+        if (formData.mfgDate && formData.expDate && formData.expDate <= formData.mfgDate) {
+            setError('Expiry date must be after the manufacturing date');
+            return;
+        }
+
         setLoading(true);
         setError('');
         setSuccess(false);
@@ -72,10 +87,87 @@ export const ManufacturerDashboard = () => {
         }
     };
 
+    const handlePrint = () => {
+        const printWindow = document.createElement('iframe');
+        printWindow.style.position = 'absolute';
+        printWindow.style.top = '-1000px';
+        printWindow.style.left = '-1000px';
+        document.body.appendChild(printWindow);
+
+        const printDocument = printWindow.contentDocument || printWindow.contentWindow.document;
+
+        // Get all QR code SVG elements and labels
+        const qrElements = Array.from(document.querySelectorAll('.printable-qr-grid > div'));
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Print Labels - PharmaTrace</title>
+                <style>
+                    body {
+                        margin: 0;
+                        padding: 10px;
+                    }
+                    .grid {
+                        display: grid;
+                        grid-template-columns: repeat(4, 1fr);
+                        gap: 20px;
+                    }
+                    .card {
+                        border: 1px solid #ccc;
+                        border-radius: 8px;
+                        padding: 10px;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        page-break-inside: avoid;
+                    }
+                    /* Ensure SVGs render properly */
+                    svg {
+                        width: 100%;
+                        height: auto;
+                        max-width: 100px;
+                        display: block;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="grid">
+                    ${qrElements.map(el => {
+            const svg = el.querySelector('svg').outerHTML;
+            return `
+                            <div class="card">
+                                ${svg}
+                            </div>
+                        `;
+        }).join('')}
+                </div>
+            </body>
+            </html>
+        `;
+
+        printDocument.open();
+        printDocument.write(html);
+        printDocument.close();
+
+        // Wait for rendering then print
+        setTimeout(() => {
+            printWindow.contentWindow.focus();
+            printWindow.contentWindow.print();
+
+            // Clean up after print dialog closes
+            setTimeout(() => {
+                document.body.removeChild(printWindow);
+            }, 1000);
+        }, 250);
+    };
+
     const resetForm = () => {
         setBatchResults([]);
         setSuccess(false);
         setFormData({ name: '', batchNumber: '', mfgDate: '', expDate: '', count: '' });
+        fetchRecentBatches();
     };
 
     return (
@@ -89,7 +181,7 @@ export const ManufacturerDashboard = () => {
                         <Plus className="h-4 w-4 mr-2" />
                         New batch
                     </Button>
-                    <Button onClick={() => window.print()}>
+                    <Button onClick={handlePrint}>
                         <Printer className="h-4 w-4 mr-2" />
                         Print labels
                     </Button>
@@ -126,7 +218,7 @@ export const ManufacturerDashboard = () => {
                         <CardDescription>{batchResults.length} products ready for labeling</CardDescription>
                     </CardHeader>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[500px] overflow-y-auto">
+                    <div className="printable-qr-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[500px] overflow-y-auto">
                         {batchResults.map((prod, idx) => (
                             <div
                                 key={idx}
@@ -187,6 +279,7 @@ export const ManufacturerDashboard = () => {
                                 type="date"
                                 value={formData.expDate}
                                 onChange={handleChange}
+                                min={formData.mfgDate || undefined}
                                 required
                             />
                         </div>
@@ -215,20 +308,20 @@ export const ManufacturerDashboard = () => {
                     {/* Recent Batches List */}
                     {recentBatches.length > 0 && (
                         <div className="mt-8 animate-fade-in">
-                            <h3 className="text-lg font-medium text-white mb-4">Recent Products</h3>
+                            <h3 className="text-lg font-medium text-white mb-4">Recent Batches</h3>
                             <div className="space-y-3">
-                                {recentBatches.map((prod) => (
-                                    <div key={prod._id} className="p-4 rounded-xl bg-zinc-800/50 border border-white/5 flex justify-between items-center">
+                                {recentBatches.map((batch) => (
+                                    <div key={batch._id} className="p-4 rounded-xl bg-zinc-800/50 border border-white/5 flex justify-between items-center">
                                         <div>
-                                            <p className="font-medium text-zinc-200">{prod.name}</p>
-                                            <p className="text-xs text-zinc-500 font-mono">{prod.productId}</p>
+                                            <p className="font-medium text-zinc-200">{batch.name}</p>
+                                            <p className="text-xs text-zinc-500 font-mono">{batch.batchNumber} &middot; {batch.unitCount} units</p>
                                         </div>
                                         <div className="text-right">
-                                            <Badge variant={prod.currentStatus === 'Manufactured' ? 'info' : 'success'}>
-                                                {prod.currentStatus || 'Manufactured'}
+                                            <Badge variant={batch.currentStatus === 'Manufactured' ? 'info' : 'success'}>
+                                                {batch.currentStatus || 'Manufactured'}
                                             </Badge>
                                             <p className="text-xs text-zinc-500 mt-1">
-                                                {new Date(prod.createdAt).toLocaleDateString()}
+                                                {new Date(batch.createdAt).toLocaleDateString()}
                                             </p>
                                         </div>
                                     </div>
