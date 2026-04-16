@@ -14,7 +14,17 @@ const ProductSchema = new mongoose.Schema({
     currentLocation: { type: String },
     currentHandler: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    // Anti-counterfeiting: Scan-Count Lock
+    scanCount: { type: Number, default: 0 },
+    isLocked: { type: Boolean, default: false },
+    lockedBy: { type: String },
+    lockedAt: { type: Date },
+    // Product Recall
+    isRecalled: { type: Boolean, default: false },
+    recallReason: { type: String },
+    recalledAt: { type: Date },
+    recalledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 });
 
 module.exports = mongoose.model('Product', ProductSchema);

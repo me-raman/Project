@@ -52,9 +52,23 @@ export const Timeline = ({ events }) => {
                                 </div>
                             </div>
 
-                            <div className="flex items-start gap-2 text-sm text-slate-300 mb-4 bg-slate-800/50 p-2 rounded-lg w-fit border border-slate-700/50">
-                                <MapPin className="h-4 w-4 mt-0.5 text-slate-500" />
-                                <span>{event.location}</span>
+                            <div className="flex flex-col gap-1.5 mb-4">
+                                <div className="flex items-start gap-2 text-sm text-slate-300 bg-slate-800/50 p-2 rounded-lg w-fit border border-slate-700/50">
+                                    <MapPin className="h-4 w-4 mt-0.5 text-slate-500" />
+                                    <span>{event.location}</span>
+                                </div>
+                                {event.latitude && event.longitude && (
+                                    <a
+                                        href={`https://www.google.com/maps?q=${event.latitude},${event.longitude}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/5 border border-blue-500/10 px-2.5 py-1 rounded-lg w-fit"
+                                    >
+                                        <MapPin className="h-3 w-3" />
+                                        <span>GPS: {event.latitude.toFixed(4)}, {event.longitude.toFixed(4)}</span>
+                                        <span className="text-blue-500/50">↗</span>
+                                    </a>
+                                )}
                             </div>
 
                             {event.notes && (

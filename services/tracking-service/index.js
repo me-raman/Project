@@ -28,7 +28,9 @@ app.get('/health', (req, res) => {
     res.json({ service: 'tracking-service', status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Routes
+// Routes — handoff and reconciliation MUST be before track (track has catch-all /:id)
+app.use('/api/track', require('./routes/handoff'));
+app.use('/api/track', require('./routes/reconciliation'));
 app.use('/api/track', require('./routes/track'));
 
 // 404 handler

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
-import { Package, CheckCircle, AlertCircle, Printer, Plus } from 'lucide-react';
+import { Package, CheckCircle, AlertCircle, Printer, Plus, Send, Lock, Users } from 'lucide-react';
 import { DashboardShell } from './layout/DashboardShell';
 import { Button, Card, CardHeader, CardTitle, CardDescription, Input, Badge } from './ui';
 
@@ -17,9 +17,27 @@ export const ManufacturerDashboard = () => {
     });
     const [batchResults, setBatchResults] = useState([]);
     const [recentBatches, setRecentBatches] = useState([]);
+    const [geoCoords, setGeoCoords] = useState(null);
+    const [batchMeta, setBatchMeta] = useState(null); // auditStatus, quantityLocked, declaredQuantity
+    const [shipModal, setShipModal] = useState(null);
+    const [shipLoading, setShipLoading] = useState(false);
+    const [distributors, setDistributors] = useState([]);
+    const [selectedReceiver, setSelectedReceiver] = useState('');
 
     useEffect(() => {
         fetchRecentBatches();
+        // Request geolocation on mount
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    setGeoCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+                },
+                (err) => {
+                    console.log('Geolocation not available:', err.message);
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
     }, []);
 
     const fetchRecentBatches = async () => {
@@ -65,6 +83,27 @@ export const ManufacturerDashboard = () => {
         setSuccess(false);
 
         try {
+            // Capture fresh geolocation at submit time
+            let latitude, longitude;
+            try {
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 5000
+                    });
+                });
+                latitude = pos.coords.latitude;
+                longitude = pos.coords.longitude;
+                setGeoCoords({ latitude, longitude });
+            } catch (geoErr) {
+                console.log('Geolocation not available at submit:', geoErr.message);
+                // Fall back to previously acquired coordinates
+                if (geoCoords) {
+                    latitude = geoCoords.latitude;
+                    longitude = geoCoords.longitude;
+                }
+            }
+
             const token = sessionStorage.getItem('token');
             const response = await fetch('/api/product/batch', {
                 method: 'POST',
@@ -72,7 +111,7 @@ export const ManufacturerDashboard = () => {
                     'Content-Type': 'application/json',
                     'x-auth-token': token
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({ ...formData, latitude, longitude })
             });
 
             const data = await response.json();
@@ -80,6 +119,11 @@ export const ManufacturerDashboard = () => {
 
             setSuccess(true);
             setBatchResults(data.products);
+            setBatchMeta({
+                auditStatus: data.auditStatus,
+                quantityLocked: data.quantityLocked,
+                declaredQuantity: data.declaredQuantity
+            });
             setLoading(false);
         } catch (err) {
             setError(err.message);
@@ -171,6 +215,7 @@ export const ManufacturerDashboard = () => {
     };
 
     return (
+        <>
         <DashboardShell
             title="Register products"
             description="Generate unique identifiers for your product batch"
@@ -195,9 +240,19 @@ export const ManufacturerDashboard = () => {
                         <CheckCircle className="h-5 w-5 text-green-400" />
                         <div>
                             <p className="font-medium text-zinc-100">Batch registered successfully</p>
-                            <p className="text-sm text-zinc-400">{batchResults.length} products created</p>
+                            <p className="text-sm text-zinc-400">
+                                {batchResults.length} products created
+                                {batchMeta?.quantityLocked && (
+                                    <span className="ml-2"><Lock className="h-3 w-3 inline" /> Quantity locked at {batchMeta.declaredQuantity}</span>
+                                )}
+                            </p>
                         </div>
                     </div>
+                    {batchMeta?.auditStatus === 'PENDING_AUDIT' && (
+                        <div className="mt-2 p-2 rounded-lg bg-amber-900/30 border border-amber-500/20">
+                            <p className="text-sm text-amber-300">⚠ This batch has been randomly selected for audit. Products will be available after admin review.</p>
+                        </div>
+                    )}
                 </Card>
             )}
 
@@ -227,7 +282,7 @@ export const ManufacturerDashboard = () => {
                                 <div className="bg-white p-2 rounded mb-2">
                                     <QRCode
                                         size={72}
-                                        value={prod.productId}
+                                        value={prod.qrPayload || prod.productId}
                                         style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
                                         viewBox="0 0 256 256"
                                     />
@@ -299,6 +354,7 @@ export const ManufacturerDashboard = () => {
                             Maximum 1000 units per batch
                         </p>
 
+
                         <div className="flex justify-end pt-2">
                             <Button type="submit" loading={loading} size="lg">
                                 {loading ? 'Generating...' : 'Generate QR codes'}
@@ -314,15 +370,44 @@ export const ManufacturerDashboard = () => {
                                     <div key={batch._id} className="p-4 rounded-xl bg-zinc-800/50 border border-white/5 flex justify-between items-center">
                                         <div>
                                             <p className="font-medium text-zinc-200">{batch.name}</p>
-                                            <p className="text-xs text-zinc-500 font-mono">{batch.batchNumber} &middot; {batch.unitCount} units</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <Badge variant={batch.currentStatus === 'Manufactured' ? 'info' : 'success'}>
-                                                {batch.currentStatus || 'Manufactured'}
-                                            </Badge>
-                                            <p className="text-xs text-zinc-500 mt-1">
-                                                {new Date(batch.createdAt).toLocaleDateString()}
+                                            <p className="text-xs text-zinc-500 font-mono">
+                                                {batch.batchNumber} &middot; {batch.unitCount} units
+                                                {batch.quantityLocked && <span className="text-amber-400 ml-1"><Lock className="h-3 w-3 inline" /> Locked</span>}
                                             </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {batch.currentStatus === 'Manufactured' && (
+                                                <Button
+                                                    variant="secondary"
+                                                    onClick={async () => {
+                                                        // Fetch distributors for the receiver picker
+                                                        try {
+                                                            const token = sessionStorage.getItem('token');
+                                                            const res = await fetch('/api/auth/users-by-role/Distributor', {
+                                                                headers: { 'x-auth-token': token }
+                                                            });
+                                                            if (res.ok) {
+                                                                const data = await res.json();
+                                                                setDistributors(data);
+                                                            }
+                                                        } catch (err) {
+                                                            console.error('Failed to fetch distributors:', err);
+                                                        }
+                                                        setShipModal(batch);
+                                                    }}
+                                                >
+                                                    <Send className="h-3 w-3 mr-1" />
+                                                    Ship
+                                                </Button>
+                                            )}
+                                            <div className="text-right">
+                                                <Badge variant={batch.currentStatus === 'Manufactured' ? 'info' : 'success'}>
+                                                    {batch.currentStatus || 'Manufactured'}
+                                                </Badge>
+                                                <p className="text-xs text-zinc-500 mt-1">
+                                                    {new Date(batch.createdAt).toLocaleDateString()}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -332,5 +417,96 @@ export const ManufacturerDashboard = () => {
                 </Card>
             )}
         </DashboardShell>
+
+        {/* Ship Modal */}
+        {shipModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+                <Card className="w-full max-w-md mx-4">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 rounded-lg bg-blue-500/10">
+                            <Send className="h-5 w-5 text-blue-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold text-zinc-100">Ship Products</h3>
+                            <p className="text-sm text-zinc-400">{shipModal.name} · Batch: {shipModal.batchNumber}</p>
+                        </div>
+                    </div>
+                    <p className="text-sm text-zinc-400 mb-4">
+                        Select the distributor you are shipping to. They must confirm receipt before the product status updates.
+                    </p>
+
+                    {/* Receiver Selector */}
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-zinc-300 mb-2">
+                            <Users className="h-4 w-4 inline mr-1" />
+                            Ship to (Distributor) *
+                        </label>
+                        {distributors.length === 0 ? (
+                            <p className="text-sm text-zinc-500 italic">Loading distributors...</p>
+                        ) : (
+                            <select
+                                className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                value={selectedReceiver}
+                                onChange={(e) => setSelectedReceiver(e.target.value)}
+                            >
+                                <option value="">-- Select a distributor --</option>
+                                {distributors.map((d) => (
+                                    <option key={d._id} value={d._id}>
+                                        {d.companyName} ({d.location})
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                        <Button variant="secondary" onClick={() => { setShipModal(null); setSelectedReceiver(''); }}>Cancel</Button>
+                        <Button
+                            loading={shipLoading}
+                            disabled={!selectedReceiver}
+                            onClick={async () => {
+                                setShipLoading(true);
+                                try {
+                                    const token = sessionStorage.getItem('token');
+                                    // Get products from the batch to ship
+                                    const prodRes = await fetch(`/api/product/batch/${encodeURIComponent(shipModal.batchNumber)}`, {
+                                        headers: { 'x-auth-token': token }
+                                    });
+                                    if (prodRes.ok) {
+                                        const products = await prodRes.json();
+                                        let shipped = 0, failed = 0;
+                                        for (const prod of products.slice(0, 10)) {
+                                            const shipRes = await fetch(`/api/track/ship/${encodeURIComponent(prod.productId)}`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                                                body: JSON.stringify({
+                                                    receiverId: selectedReceiver,
+                                                    notes: `Shipped batch ${shipModal.batchNumber}`,
+                                                    latitude: geoCoords?.latitude,
+                                                    longitude: geoCoords?.longitude
+                                                })
+                                            });
+                                            if (shipRes.ok) shipped++; else failed++;
+                                        }
+                                        if (failed > 0) setError(`${shipped} shipped, ${failed} failed`);
+                                    }
+                                    setShipModal(null);
+                                    setSelectedReceiver('');
+                                    fetchRecentBatches();
+                                } catch (err) {
+                                    setError(err.message);
+                                } finally {
+                                    setShipLoading(false);
+                                }
+                            }}
+                        >
+                            <Send className="h-4 w-4 mr-2" />
+                            Confirm Ship
+                        </Button>
+                    </div>
+                </Card>
+            </div>
+        )}
+    </>
     );
 };

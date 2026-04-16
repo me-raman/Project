@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Search, CheckCircle, AlertCircle, Package, Truck, Calendar, Clock } from 'lucide-react';
+import { ShieldCheck, Search, CheckCircle, AlertCircle, Package, Truck, Calendar, Clock, Inbox, ThumbsUp, ThumbsDown, Send } from 'lucide-react';
 import { Scanner } from './Scanner';
 import { DashboardShell } from './layout/DashboardShell';
 import { Button, Card, CardHeader, CardTitle, CardDescription, Input, Select, Textarea, Badge } from './ui';
@@ -12,9 +12,27 @@ export const DistributorDashboard = () => {
     const [error, setError] = useState(null);
     const [updateSuccess, setUpdateSuccess] = useState(false);
     const [recentActivity, setRecentActivity] = useState([]);
+    const [geoCoords, setGeoCoords] = useState(null);
+    const [pendingHandoffs, setPendingHandoffs] = useState([]);
+    const [handoffLoading, setHandoffLoading] = useState(null);
+    const [disputeReason, setDisputeReason] = useState('');
+    const [disputeProductId, setDisputeProductId] = useState(null);
 
     useEffect(() => {
         fetchHistory();
+        fetchPendingHandoffs();
+        // Request geolocation on mount
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    setGeoCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+                },
+                (err) => {
+                    console.log('Geolocation not available:', err.message);
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
     }, []);
 
     const fetchHistory = async () => {
@@ -32,6 +50,81 @@ export const DistributorDashboard = () => {
         }
     };
 
+    const fetchPendingHandoffs = async () => {
+        try {
+            const token = sessionStorage.getItem('token');
+            const res = await fetch('/api/track/pending', {
+                headers: { 'x-auth-token': token }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setPendingHandoffs(data.handoffs || []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch pending handoffs:', err);
+        }
+    };
+
+    const handleConfirmHandoff = async (productId) => {
+        setHandoffLoading(productId);
+        try {
+            let latitude, longitude;
+            try {
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                });
+                latitude = pos.coords.latitude;
+                longitude = pos.coords.longitude;
+            } catch (geoErr) {
+                if (geoCoords) { latitude = geoCoords.latitude; longitude = geoCoords.longitude; }
+            }
+
+            const token = sessionStorage.getItem('token');
+            const res = await fetch(`/api/track/confirm/${encodeURIComponent(productId)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                body: JSON.stringify({ notes: 'Confirmed receipt', latitude, longitude })
+            });
+            if (res.ok) {
+                fetchPendingHandoffs();
+                fetchHistory();
+            } else {
+                const data = await res.json();
+                setError(data.message);
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setHandoffLoading(null);
+        }
+    };
+
+    const handleDisputeHandoff = async (productId) => {
+        if (!disputeReason) { setError('Please enter a dispute reason'); return; }
+        setHandoffLoading(productId);
+        try {
+            const token = sessionStorage.getItem('token');
+            const res = await fetch(`/api/track/dispute/${encodeURIComponent(productId)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                body: JSON.stringify({ reason: disputeReason })
+            });
+            if (res.ok) {
+                setDisputeReason('');
+                setDisputeProductId(null);
+                fetchPendingHandoffs();
+                fetchHistory();
+            } else {
+                const data = await res.json();
+                setError(data.message);
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setHandoffLoading(null);
+        }
+    };
+
     const [showUpdateForm, setShowUpdateForm] = useState(false);
     const [canUpdate, setCanUpdate] = useState(false);
     const [updateStatus, setUpdateStatus] = useState('');
@@ -41,6 +134,24 @@ export const DistributorDashboard = () => {
         if (!updateStatus) return;
         setLoading(true);
         try {
+            // Capture geolocation
+            let latitude, longitude;
+            try {
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                });
+                latitude = pos.coords.latitude;
+                longitude = pos.coords.longitude;
+                setGeoCoords({ latitude, longitude });
+            } catch (geoErr) {
+                console.log('Geolocation not available:', geoErr.message);
+                // Fall back to previously acquired coordinates
+                if (geoCoords) {
+                    latitude = geoCoords.latitude;
+                    longitude = geoCoords.longitude;
+                }
+            }
+
             const token = sessionStorage.getItem('token');
             const res = await fetch(`/api/track/${verificationResult.product.productId}`, {
                 method: 'POST',
@@ -50,7 +161,9 @@ export const DistributorDashboard = () => {
                 },
                 body: JSON.stringify({
                     status: updateStatus,
-                    notes: updateNotes
+                    notes: updateNotes,
+                    latitude,
+                    longitude
                 })
             });
 
@@ -68,6 +181,19 @@ export const DistributorDashboard = () => {
         }
     };
 
+    // Extract plain productId from a potentially signed QR payload
+    // Signed payloads have format: "PROD-BATCH-xxx-yyy.16charsignature"
+    const extractProductId = (rawValue) => {
+        if (!rawValue || !rawValue.includes('.')) return rawValue;
+        const lastDotIndex = rawValue.lastIndexOf('.');
+        const possibleSig = rawValue.substring(lastDotIndex + 1);
+        // Signature is always 16 hex characters
+        if (possibleSig.length === 16 && /^[0-9a-f]+$/i.test(possibleSig)) {
+            return rawValue.substring(0, lastDotIndex);
+        }
+        return rawValue;
+    };
+
     const executeSearch = async (id) => {
         setLoading(true);
         setVerificationResult(null);
@@ -76,7 +202,10 @@ export const DistributorDashboard = () => {
         setShowUpdateForm(false);
 
         try {
-            const response = await fetch(`/api/product/${encodeURIComponent(id)}`);
+            // Strip QR signature if present to get the plain productId
+            const productId = extractProductId(id);
+
+            const response = await fetch(`/api/product/${encodeURIComponent(productId)}`);
             const data = await response.json();
 
             if (!response.ok) throw new Error(data.message || 'Product not found');
@@ -96,7 +225,7 @@ export const DistributorDashboard = () => {
             }
 
             setVerificationResult({ isAuthentic, product, history });
-            setQuery(id);
+            setQuery(productId);
             setCanUpdate(isAuthentic);
         } catch (err) {
             setError(err.message);
@@ -148,6 +277,83 @@ export const DistributorDashboard = () => {
                     </Button>
                 </form>
             </Card>
+
+            {/* Pending Handoffs */}
+            {pendingHandoffs.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Inbox className="h-5 w-5 text-blue-400" />
+                            Incoming Shipments
+                            <span className="ml-2 px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold">
+                                {pendingHandoffs.length}
+                            </span>
+                        </CardTitle>
+                        <CardDescription>Shipments awaiting your confirmation</CardDescription>
+                    </CardHeader>
+                    <div className="space-y-3">
+                        {pendingHandoffs.map((handoff) => (
+                            <div key={handoff._id} className="p-4 rounded-xl border border-blue-500/20 bg-blue-900/10">
+                                <div className="flex items-start justify-between mb-2">
+                                    <div>
+                                        <p className="font-medium text-zinc-100">
+                                            {handoff.product?.name || 'Product'}
+                                        </p>
+                                        <p className="text-sm text-zinc-400">
+                                            From: <span className="text-zinc-200">{handoff.sender?.companyName}</span>
+                                            <span className="text-zinc-600 mx-1">·</span>
+                                            <span className="font-mono text-xs">{handoff.productId}</span>
+                                        </p>
+                                        <p className="text-xs text-zinc-500 mt-1">
+                                            Shipped: {new Date(handoff.shippedAt).toLocaleString()}
+                                        </p>
+                                    </div>
+                                    <Badge variant="info">Awaiting Confirmation</Badge>
+                                </div>
+
+                                {disputeProductId === handoff.productId ? (
+                                    <div className="flex items-center gap-2 mt-3">
+                                        <input
+                                            type="text"
+                                            placeholder="Reason for dispute..."
+                                            className="flex-1 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-sm text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                                            value={disputeReason}
+                                            onChange={(e) => setDisputeReason(e.target.value)}
+                                        />
+                                        <Button
+                                            variant="danger"
+                                            onClick={() => handleDisputeHandoff(handoff.productId)}
+                                            disabled={handoffLoading === handoff.productId}
+                                        >
+                                            Submit Dispute
+                                        </Button>
+                                        <Button variant="secondary" onClick={() => { setDisputeProductId(null); setDisputeReason(''); }}>
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 mt-3">
+                                        <Button
+                                            onClick={() => handleConfirmHandoff(handoff.productId)}
+                                            disabled={handoffLoading === handoff.productId}
+                                        >
+                                            <ThumbsUp className="h-4 w-4 mr-1" />
+                                            {handoffLoading === handoff.productId ? 'Processing...' : 'Confirm Receipt'}
+                                        </Button>
+                                        <Button
+                                            variant="danger"
+                                            onClick={() => setDisputeProductId(handoff.productId)}
+                                        >
+                                            <ThumbsDown className="h-4 w-4 mr-1" />
+                                            Dispute
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+            )}
 
             {/* Status Messages */}
             {error && (
@@ -282,6 +488,7 @@ export const DistributorDashboard = () => {
                                             value={updateNotes}
                                             onChange={(e) => setUpdateNotes(e.target.value)}
                                         />
+
 
                                         <div className="flex gap-2">
                                             <Button

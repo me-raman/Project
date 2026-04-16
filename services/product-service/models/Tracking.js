@@ -6,7 +6,11 @@ const TrackingSchema = new mongoose.Schema({
     location: { type: String, required: true },
     status: { type: String, required: true },
     timestamp: { type: Date, default: Date.now },
-    notes: { type: String }
+    notes: { type: String },
+    // Geolocation tracking
+    latitude: { type: Number },
+    longitude: { type: Number },
+    geoVerified: { type: Boolean, default: true }
 });
 
 module.exports = mongoose.model('Tracking', TrackingSchema);

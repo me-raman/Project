@@ -3,17 +3,20 @@ import { ProductCard } from '../components/ProductCard';
 import { Timeline } from '../components/Timeline';
 import { CheckCircle2, AlertTriangle, ArrowLeft, Download, Share2 } from 'lucide-react';
 
-export const ProductDetails = ({ product, events, onBack }) => {
-    const isAuthentic = true; // Hardcoded for demo as per previous logic
+export const ProductDetails = ({ product, events, onBack, verificationMeta }) => {
+    const isRecalled = verificationMeta?.warning === 'PRODUCT_RECALLED';
+    const isPotentialCounterfeit = verificationMeta?.warning === 'POTENTIAL_COUNTERFEIT';
+    const isAuthentic = !isRecalled && !isPotentialCounterfeit;
 
     // Dynamic Stats Calculation
-    const totalScans = events.length + 1; // +1 for manufacture event
+    const totalScans = verificationMeta?.scanCount || events.length + 1;
 
     // Get latest event location
     const latestEvent = events.length > 0 ? events[0] : null;
     let currentLocation = latestEvent?.location || "In Transit";
     if (product.currentStatus === 'Manufactured') currentLocation = "Factory Warehouse";
     if (product.currentStatus === 'Received at Pharmacy') currentLocation = "Pharmacy Store";
+    if (product.currentStatus === 'Recalled') currentLocation = "Recalled";
 
     // Calculate time since last update
     const lastUpdateDate = latestEvent ? new Date(latestEvent.timestamp || new Date()) : new Date(product.updatedAt || new Date());
@@ -69,9 +72,9 @@ export const ProductDetails = ({ product, events, onBack }) => {
                     .subtitle { font-size: 12px; color: #888; font-family: Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
                     .verified-badge {
                         display: inline-block;
-                        background: #d4edda;
-                        color: #155724;
-                        border: 1px solid #c3e6cb;
+                        background: ${isAuthentic ? '#d4edda' : '#f8d7da'};
+                        color: ${isAuthentic ? '#155724' : '#721c24'};
+                        border: 1px solid ${isAuthentic ? '#c3e6cb' : '#f5c6cb'};
                         border-radius: 20px;
                         padding: 4px 16px;
                         font-size: 12px;
@@ -139,7 +142,7 @@ export const ProductDetails = ({ product, events, onBack }) => {
                             <div class="brand">PharmaTrace</div>
                             <div class="title">Certificate of Authenticity</div>
                             <div class="subtitle">Pharmaceutical Supply Chain Verification</div>
-                            <div class="verified-badge">✓ VERIFIED AUTHENTIC</div>
+                            <div class="verified-badge">${isAuthentic ? '✓ VERIFIED AUTHENTIC' : '⚠ VERIFICATION FAILED'}</div>
                         </div>
 
                         <div class="product-name">${product.name}</div>
@@ -220,29 +223,68 @@ export const ProductDetails = ({ product, events, onBack }) => {
                     {/* Main Content Column */}
                     <div className="lg:col-span-2 space-y-8">
 
-                        {/* Authenticity Banner */}
-                        <div className={`relative overflow-hidden p-6 rounded-2xl shadow-sm border ${isAuthentic ? 'bg-emerald-900/10 border-emerald-500/20' : 'bg-red-900/10 border-red-500/20'
-                            }`}>
-                            {/* Animated background glow */}
-                            <div className={`absolute -right-20 -top-20 w-64 h-64 rounded-full blur-3xl opacity-20 ${isAuthentic ? 'bg-emerald-500' : 'bg-red-500'
-                                }`}></div>
-
-                            <div className="relative flex items-start gap-4">
-                                <div className={`p-3 rounded-xl ${isAuthentic ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                                    {isAuthentic ? <CheckCircle2 className="h-8 w-8" /> : <AlertTriangle className="h-8 w-8" />}
-                                </div>
-                                <div>
-                                    <h2 className={`text-2xl font-bold mb-1 ${isAuthentic ? 'text-emerald-100' : 'text-red-100'}`}>
-                                        {isAuthentic ? 'Verified Authentic' : 'Verification Failed'}
-                                    </h2>
-                                    <p className={`text-base ${isAuthentic ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {isAuthentic
-                                            ? 'This product has a valid cryptographic signature and follows the established supply chain protocol.'
-                                            : 'Warning: This product ID does not match our records or has been flagged for review.'}
-                                    </p>
+                        {/* Recalled Banner */}
+                        {isRecalled && (
+                            <div className="relative overflow-hidden p-6 rounded-2xl shadow-sm border bg-red-900/20 border-red-500/30">
+                                <div className="absolute -right-20 -top-20 w-64 h-64 rounded-full blur-3xl opacity-20 bg-red-500"></div>
+                                <div className="relative flex items-start gap-4">
+                                    <div className="p-3 rounded-xl bg-red-500/10 text-red-400">
+                                        <AlertTriangle className="h-8 w-8" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold mb-1 text-red-100">
+                                            ⚠️ Product Recalled
+                                        </h2>
+                                        <p className="text-base text-red-400">
+                                            {verificationMeta?.message || 'This product has been recalled. Do not use or sell this product.'}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* Counterfeit Warning Banner */}
+                        {isPotentialCounterfeit && (
+                            <div className="relative overflow-hidden p-6 rounded-2xl shadow-sm border bg-orange-900/20 border-orange-500/30">
+                                <div className="absolute -right-20 -top-20 w-64 h-64 rounded-full blur-3xl opacity-20 bg-orange-500"></div>
+                                <div className="relative flex items-start gap-4">
+                                    <div className="p-3 rounded-xl bg-orange-500/10 text-orange-400">
+                                        <AlertTriangle className="h-8 w-8" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold mb-1 text-orange-100">
+                                            ⚠️ Potential Counterfeit Detected
+                                        </h2>
+                                        <p className="text-base text-orange-400">
+                                            This QR code has already been scanned and verified by another user.
+                                            This copy may not be authentic. Scanned {totalScans} times.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Authenticity Banner (only if not recalled or counterfeit) */}
+                        {!isRecalled && !isPotentialCounterfeit && (
+                            <div className={`relative overflow-hidden p-6 rounded-2xl shadow-sm border bg-emerald-900/10 border-emerald-500/20`}>
+                                <div className="absolute -right-20 -top-20 w-64 h-64 rounded-full blur-3xl opacity-20 bg-emerald-500"></div>
+                                <div className="relative flex items-start gap-4">
+                                    <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
+                                        <CheckCircle2 className="h-8 w-8" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold mb-1 text-emerald-100">
+                                            Verified Authentic
+                                        </h2>
+                                        <p className="text-base text-emerald-400">
+                                            {verificationMeta?.signatureValid
+                                                ? 'This product has a valid cryptographic signature and follows the established supply chain protocol.'
+                                                : 'This product has been verified through the supply chain tracking system.'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <ProductCard product={product} />
                         <Timeline events={events} />
@@ -265,6 +307,16 @@ export const ProductDetails = ({ product, events, onBack }) => {
                                     <Stat label="Last Updated" value={timeSinceUpdate} />
                                     <div className="h-px bg-slate-800"></div>
                                     <Stat label="Quality Score" value={`${qualityScore}/100`} />
+                                    {verificationMeta?.signatureValid !== null && verificationMeta?.signatureValid !== undefined && (
+                                        <>
+                                            <div className="h-px bg-slate-800"></div>
+                                            <Stat
+                                                label="QR Signature"
+                                                value={verificationMeta.signatureValid ? '✓ Valid' : 'Not signed'}
+                                                highlight={verificationMeta.signatureValid}
+                                            />
+                                        </>
+                                    )}
                                 </div>
                             </div>
 

@@ -5,11 +5,12 @@ const authorize = require('../middleware/authorize');
 const Product = require('../models/Product');
 const Tracking = require('../models/Tracking');
 const User = require('../models/User');
+const { checkImpossibleTravel } = require('../utils/geoUtils');
 
 // @route   POST /api/track/:id
 // @desc    Add tracking update (Admin, Distributor, Pharmacy only)
 router.post('/:id', auth, authorize('Admin', 'Distributor', 'Pharmacy'), async (req, res) => {
-    const { status, location, notes } = req.body;
+    const { status, location, notes, latitude, longitude } = req.body;
     const productId = req.params.id;
 
     try {
@@ -43,13 +44,35 @@ router.post('/:id', auth, authorize('Admin', 'Distributor', 'Pharmacy'), async (
         const user = await User.findById(req.user.userId);
         const trackingLocation = location || user?.location || 'Unknown';
 
+        // Geolocation: Check for impossible travel
+        let geoVerified = true;
+        if (latitude && longitude) {
+            const lastEvent = await Tracking.findOne({ product: product._id })
+                .sort({ timestamp: -1 });
+
+            if (lastEvent && lastEvent.latitude && lastEvent.longitude) {
+                const travelCheck = checkImpossibleTravel(
+                    { latitude: lastEvent.latitude, longitude: lastEvent.longitude, timestamp: lastEvent.timestamp },
+                    { latitude, longitude, timestamp: new Date() }
+                );
+
+                if (travelCheck.impossible) {
+                    geoVerified = false;
+                    console.log(`[GEO ANOMALY] Product ${productId}: ${travelCheck.distance}km in ${travelCheck.speed}km/h`);
+                }
+            }
+        }
+
         // Create new tracking event
         const trackingEvent = new Tracking({
             product: product._id,
             handler: req.user.userId,
             location: trackingLocation,
             status,
-            notes
+            notes,
+            latitude: latitude || undefined,
+            longitude: longitude || undefined,
+            geoVerified
         });
 
         await trackingEvent.save();
@@ -60,7 +83,7 @@ router.post('/:id', auth, authorize('Admin', 'Distributor', 'Pharmacy'), async (
         product.currentHandler = req.user.userId;
         await product.save();
 
-        res.json(trackingEvent);
+        res.json({ ...trackingEvent.toObject(), geoVerified });
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ message: 'Server error' });

@@ -132,4 +132,23 @@ router.post('/login-otp', async (req, res) => {
     }
 });
 
+// @route   GET /api/auth/users-by-role/:role
+// @desc    List all users with a given role (for receiver picker in ship flow)
+router.get('/users-by-role/:role', auth, async (req, res) => {
+    try {
+        const { role } = req.params;
+        const validRoles = ['Distributor', 'Pharmacy', 'Manufacturer'];
+        if (!validRoles.includes(role)) {
+            return res.status(400).json({ message: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
+        }
+        const users = await User.find({ role })
+            .select('_id companyName location phoneNumber role')
+            .sort({ companyName: 1 });
+        res.json(users);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;

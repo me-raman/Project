@@ -30,6 +30,8 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/product', require('./routes/product'));
+app.use('/api/product/admin', require('./routes/audit'));
+app.use('/api/product', require('./routes/labtest'));
 
 // 404 handler
 app.use((req, res) => {

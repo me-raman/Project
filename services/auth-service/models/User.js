@@ -10,7 +10,23 @@ const UserSchema = new mongoose.Schema({
     },
     companyName: { type: String, required: true },
     location: { type: String, required: true },
-    phoneNumber: { type: String, required: true, unique: true }
+    phoneNumber: { type: String, required: true, unique: true },
+    // Registered geo-coordinates (for reconciliation checks)
+    registeredLatitude: { type: Number },
+    registeredLongitude: { type: Number },
+    registeredAddress: { type: String },
+    // Reputation Scoring
+    reputationScore: { type: Number, default: 100, min: 0, max: 100 },
+    reputationHistory: [{
+        score: Number,
+        reason: String,
+        delta: Number,
+        timestamp: { type: Date, default: Date.now }
+    }],
+    totalAnomalies: { type: Number, default: 0 },
+    totalDisputes: { type: Number, default: 0 },
+    totalHandoffs: { type: Number, default: 0 },
+    lastReputationUpdate: { type: Date }
 });
 
 module.exports = mongoose.model('User', UserSchema);
