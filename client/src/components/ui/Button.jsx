@@ -21,11 +21,11 @@ export const Button = ({
     `;
 
     const variants = {
-        primary: 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg shadow-blue-500/20',
-        secondary: 'glass hover:bg-white/10 text-zinc-300',
+        primary: 'bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] shimmer-btn',
+        secondary: 'glass hover:bg-white/10 text-zinc-200 border border-white/10',
         ghost: 'text-zinc-400 hover:text-white hover:bg-white/5',
-        success: 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white',
-        danger: 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white'
+        success: 'bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-600 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] shimmer-btn',
+        danger: 'bg-gradient-to-r from-rose-600 via-red-500 to-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.3)] shimmer-btn'
     };
 
     const sizes = {

@@ -7,6 +7,22 @@ const Tracking = require('../models/Tracking');
 const User = require('../models/User');
 const { checkImpossibleTravel } = require('../utils/geoUtils');
 
+// @route   GET /api/track/user/history
+// @desc    Get tracking history for the current user
+router.get('/user/history', auth, async (req, res) => {
+    try {
+        const history = await Tracking.find({ handler: req.user.userId })
+            .populate('product', 'name productId batchNumber')
+            .sort({ timestamp: -1 })
+            .limit(10);
+
+        res.json(history);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // @route   POST /api/track/:id
 // @desc    Add tracking update (Admin, Distributor, Pharmacy only)
 router.post('/:id', auth, authorize('Admin', 'Distributor', 'Pharmacy'), async (req, res) => {
@@ -105,22 +121,6 @@ router.get('/:id', async (req, res) => {
             .sort({ timestamp: -1 });
 
         res.json({ productId: req.params.id, history });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// @route   GET /api/track/user/history
-// @desc    Get tracking history for the current user
-router.get('/user/history', auth, async (req, res) => {
-    try {
-        const history = await Tracking.find({ handler: req.user.userId })
-            .populate('product', 'name productId batchNumber')
-            .sort({ timestamp: -1 })
-            .limit(10);
-
-        res.json(history);
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ message: 'Server error' });

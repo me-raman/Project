@@ -12,8 +12,10 @@ export const DashboardShell = ({
     actions
 }) => {
     return (
-        <div className="min-h-screen bg-[#111113] pt-20">
-            <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="min-h-screen bg-bg-base relative overflow-hidden pt-20">
+            <div className="absolute inset-0 bg-mesh pointer-events-none"></div>
+            <div className="absolute inset-0 bg-noise pointer-events-none opacity-50"></div>
+            <div className="max-w-6xl mx-auto px-6 py-8 relative z-10">
                 {/* Page Header */}
                 <div className="mb-8">
                     <div className="flex items-start justify-between">

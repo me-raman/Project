@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Pill, ChevronRight } from 'lucide-react';
+import { Menu, X, ShieldCheck, ChevronRight } from 'lucide-react';
 import { Login } from './Login';
 import { SignUp } from './SignUp';
 
@@ -85,14 +85,17 @@ export const Navbar = ({ onLoginClick }) => {
                 ? 'bg-[#0c0d10]/90 backdrop-blur-xl border-b border-white/5'
                 : 'bg-transparent'
                 }`}>
-                <div className="max-w-6xl mx-auto px-4 sm:px-6">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="flex justify-between items-center h-16">
                         {/* Brand */}
-                        <div className="flex items-center gap-2.5">
-                            <div className="p-1.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
-                                <Pill className="h-4 w-4 text-white" />
+                        <div className="flex items-center gap-2.5 group cursor-pointer hover:scale-[1.02] transition-all duration-300" onClick={() => window.location.href = '/'}>
+                            <div className="relative">
+                                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-60 transition duration-500"></div>
+                                <div className="relative p-2 bg-[#0c0d10] border border-white/10 rounded-lg shadow-lg group-hover:border-blue-500/50 transition-colors">
+                                    <ShieldCheck className="h-5 w-5 text-blue-400 group-hover:text-blue-300 transition-colors" />
+                                </div>
                             </div>
-                            <span className="text-base font-semibold text-white">
+                            <span className="text-xl font-extrabold font-brand tracking-tight-brand text-white">
                                 PharmaTrace
                             </span>
                         </div>
@@ -206,18 +209,69 @@ export const Navbar = ({ onLoginClick }) => {
 
 export const Footer = () => {
     return (
-        <footer className="border-t border-white/5 py-8 mt-16">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6">
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <div className="p-1 bg-gradient-to-br from-blue-500 to-purple-600 rounded">
-                            <Pill className="h-3 w-3 text-white" />
+        <footer className="relative mt-24 border-t border-white/5 bg-[#0a0a0c] overflow-hidden">
+            <div className="absolute inset-0 bg-noise opacity-30 pointer-events-none"></div>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
+            
+            <div className="max-w-7xl mx-auto px-6 py-16 relative z-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3 group cursor-pointer inline-flex transition-transform hover:scale-[1.02]">
+                            <div className="p-2 bg-white/5 border border-white/10 rounded-lg group-hover:border-blue-500/30 transition-colors">
+                                <ShieldCheck className="h-5 w-5 text-blue-400" />
+                            </div>
+                            <span className="text-xl font-extrabold font-brand tracking-tight-brand text-white">PharmaTrace</span>
                         </div>
-                        <span className="text-sm font-medium text-zinc-500">PharmaTrace</span>
+                        <p className="text-zinc-500 text-sm leading-relaxed max-w-xs font-light">
+                            Securing the global pharmaceutical supply chain with advanced cryptographic verification and real-time tracking.
+                        </p>
                     </div>
-                    <p className="text-sm text-zinc-600">
-                        © 2026 PharmaTrace. All rights reserved.
+
+                    <div>
+                        <h4 className="text-white font-semibold mb-6 uppercase text-sm tracking-wider">Product</h4>
+                        <ul className="space-y-3">
+                            <li><a href="#" className="text-zinc-400 hover:text-blue-400 text-sm transition-colors">Features</a></li>
+                            <li><a href="#" className="text-zinc-400 hover:text-blue-400 text-sm transition-colors">How it Works</a></li>
+                            <li><a href="#" className="text-zinc-400 hover:text-blue-400 text-sm transition-colors">Security</a></li>
+                            <li><a href="#" className="text-zinc-400 hover:text-blue-400 text-sm transition-colors">For Pharmacies</a></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 className="text-white font-semibold mb-6 uppercase text-sm tracking-wider">Company</h4>
+                        <ul className="space-y-3">
+                            <li><a href="#" className="text-zinc-400 hover:text-blue-400 text-sm transition-colors">About Us</a></li>
+                            <li><a href="#" className="text-zinc-400 hover:text-blue-400 text-sm transition-colors">Careers</a></li>
+                            <li><a href="#" className="text-zinc-400 hover:text-blue-400 text-sm transition-colors">Contact Support</a></li>
+                            <li><a href="#" className="text-zinc-400 hover:text-blue-400 text-sm transition-colors">Partners</a></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 className="text-white font-semibold mb-6 uppercase text-sm tracking-wider">Stay Updated</h4>
+                        <p className="text-zinc-400 text-sm mb-4">Get the latest news on supply chain security.</p>
+                        <form className="flex gap-2" onSubmit={(e) => e.preventDefault()}>
+                            <input 
+                                type="email" 
+                                placeholder="Enter your email" 
+                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                            />
+                            <button className="bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors">
+                                Subscribe
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <p className="text-zinc-500 text-sm">
+                        © {new Date().getFullYear()} PharmaTrace Networks Inc. All rights reserved.
                     </p>
+                    <div className="flex items-center gap-6 text-sm">
+                        <a href="#" className="text-zinc-500 hover:text-white transition-colors">Privacy Policy</a>
+                        <a href="#" className="text-zinc-500 hover:text-white transition-colors">Terms of Service</a>
+                        <a href="#" className="text-zinc-500 hover:text-white transition-colors">Compliance</a>
+                    </div>
                 </div>
             </div>
         </footer>

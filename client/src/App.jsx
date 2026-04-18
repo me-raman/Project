@@ -111,7 +111,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0c0d10] font-sans text-zinc-100">
+    <div className="min-h-screen bg-[#060608] font-sans text-zinc-100">
       <Navbar onLoginClick={handleOpenLogin} />
 
       <main>

@@ -256,6 +256,29 @@ export const DistributorDashboard = () => {
             description="Scan or search to verify incoming products"
             icon={ShieldCheck}
         >
+            {/* Welcome Stats Card */}
+            <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-down delay-100">
+                <Card className="col-span-1 md:col-span-2 !bg-gradient-to-br !from-purple-900/40 !to-indigo-900/40 border-purple-500/20 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+                    <div className="relative z-10 p-2">
+                        <Badge variant="info" className="mb-3">Distributor Portal</Badge>
+                        <h2 className="text-2xl font-bold text-white mb-2">Welcome back, {sessionStorage.getItem('userName')}</h2>
+                        <p className="text-zinc-400">Manage incoming shipments and verify pharmaceutical authenticity.</p>
+                    </div>
+                </Card>
+                <Card className="!bg-gradient-to-br !from-amber-900/30 !to-orange-900/30 border-amber-500/20 relative overflow-hidden flex items-center justify-center text-center">
+                    <div className="relative z-10 p-2">
+                        <div className="mx-auto w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center mb-3">
+                            <Inbox className="h-6 w-6 text-amber-400" />
+                        </div>
+                        <h3 className="text-3xl font-bold text-white mb-1">
+                            {pendingHandoffs.length}
+                        </h3>
+                        <p className="text-zinc-400 text-sm">Pending Handoffs</p>
+                    </div>
+                </Card>
+            </div>
+
             {/* Search */}
             <Card padding="md">
                 <form onSubmit={handleSearch} className="flex gap-3">

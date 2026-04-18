@@ -7,6 +7,8 @@ export const Card = ({
     children,
     className = '',
     padding = 'md',
+    variant = 'default',
+    hover = false,
     ...props
 }) => {
     const paddings = {
@@ -15,10 +17,16 @@ export const Card = ({
         md: 'p-5',
         lg: 'p-6'
     };
+    
+    const variants = {
+        default: 'glass',
+        primary: 'glass-accent',
+        purple: 'glass-purple'
+    };
 
     return (
         <div
-            className={`glass rounded-xl ${paddings[padding]} ${className}`}
+            className={`rounded-2xl ${variants[variant]} ${paddings[padding]} ${hover ? 'glass-hover transition-smooth' : ''} ${className}`}
             {...props}
         >
             {children}

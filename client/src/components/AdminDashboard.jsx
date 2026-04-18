@@ -459,6 +459,29 @@ export const AdminDashboard = () => {
                 </Card>
             )}
 
+            {/* Welcome Stats Card */}
+            <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-down delay-100">
+                <Card className="col-span-1 md:col-span-2 !bg-gradient-to-br !from-rose-900/40 !to-red-900/40 border-red-500/20 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+                    <div className="relative z-10 p-2">
+                        <Badge variant="danger" className="mb-3">Admin Portal</Badge>
+                        <h2 className="text-2xl font-bold text-white mb-2">Welcome back, {sessionStorage.getItem('userName')}</h2>
+                        <p className="text-zinc-400">System oversight, auditing, and global supply chain control center.</p>
+                    </div>
+                </Card>
+                <Card className="!bg-gradient-to-br !from-blue-900/30 !to-indigo-900/30 border-blue-500/20 relative overflow-hidden flex items-center justify-center text-center">
+                    <div className="relative z-10 p-2">
+                        <div className="mx-auto w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mb-3">
+                            <Shield className="h-6 w-6 text-blue-400" />
+                        </div>
+                        <h3 className="text-3xl font-bold text-white mb-1">
+                            {auditQueue.length}
+                        </h3>
+                        <p className="text-zinc-400 text-sm">Pending Audits</p>
+                    </div>
+                </Card>
+            </div>
+
             {/* Stats Cards */}
             {stats && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
