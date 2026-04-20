@@ -2,9 +2,22 @@ import React, { useState } from 'react';
 import { Navbar, Footer } from './components/Layout';
 import { Home } from './pages/Home';
 import { ProductDetails } from './pages/ProductDetails';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { TermsOfService } from './pages/TermsOfService';
+import { Compliance } from './pages/Compliance';
+import { Profile } from './pages/Profile';
+import { ChangePassword } from './pages/ChangePassword';
 
 function App() {
-  const [view, setView] = useState('home');
+  const [view, setView] = useState(() => {
+    const path = window.location.pathname;
+    if (path === '/privacy-policy') return 'privacy';
+    if (path === '/terms-of-service') return 'terms';
+    if (path === '/compliance') return 'compliance';
+    if (path === '/profile') return 'profile';
+    if (path === '/change-password') return 'change-password';
+    return 'home';
+  });
   const [productData, setProductData] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -123,6 +136,12 @@ function App() {
             onOpenLogin={handleOpenLogin}
           />
         )}
+
+        {view === 'privacy' && <PrivacyPolicy />}
+        {view === 'terms' && <TermsOfService />}
+        {view === 'compliance' && <Compliance />}
+        {view === 'profile' && <Profile />}
+        {view === 'change-password' && <ChangePassword />}
 
         {view === 'details' && productData && (
           <ProductDetails

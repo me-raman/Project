@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true },
     password: { type: String },
     role: {
         type: String,
@@ -9,8 +10,13 @@ const UserSchema = new mongoose.Schema({
         required: true
     },
     companyName: { type: String, required: true },
+    licenceNumber: { type: String, required: true },
     location: { type: String, required: true },
-    phoneNumber: { type: String, required: true, unique: true },
+    licenceStatus: {
+        type: String,
+        enum: ['pending', 'verified', 'rejected'],
+        default: 'pending'
+    },
     // Registered geo-coordinates (for reconciliation checks)
     registeredLatitude: { type: Number },
     registeredLongitude: { type: Number },

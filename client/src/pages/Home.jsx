@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Shield, Globe, Zap, ScanLine, AlertCircle, Truck, Sparkles, Building2, UserCheck, Activity, ArrowRight, CheckCircle2, QrCode } from 'lucide-react';
 import { ManufacturerDashboard } from '../components/ManufacturerDashboard';
 import { DistributorDashboard } from '../components/DistributorDashboard';
+import { PharmacyDashboard } from '../components/PharmacyDashboard';
 import { AdminDashboard } from '../components/AdminDashboard';
 import { Scanner } from '../components/Scanner';
 import { Button, Card, Badge } from '../components/ui';
@@ -42,6 +43,10 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
 
     if (userRole?.toLowerCase() === 'distributor') {
         return <DistributorDashboard />;
+    }
+
+    if (userRole?.toLowerCase() === 'pharmacy') {
+        return <PharmacyDashboard />;
     }
 
     // Public verification page - Advanced Design
@@ -263,10 +268,6 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
                             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">Securing the loop, <br /><span className="text-zinc-500">end-to-end.</span></h2>
                             <p className="text-zinc-400 text-lg font-light"><span className="font-brand font-semibold text-white">PharmaTrace</span> creates a seamless cryptographic bridge from the factory floor to the patient.</p>
                         </div>
-                        <div className="flex gap-4">
-                            <div className="p-4 rounded-2xl glass border-blue-500/20"><Globe className="h-6 w-6 text-blue-400" /></div>
-                            <div className="p-4 rounded-2xl glass border-purple-500/20"><Zap className="h-6 w-6 text-purple-400" /></div>
-                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
@@ -275,7 +276,7 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
                         
                         {/* Step 1 */}
                         <div className="group relative z-10">
-                            <div className="w-20 h-20 bg-[#0c0d10] ring-1 ring-white/10 rounded-3xl flex items-center justify-center mb-8 shadow-2xl group-hover:ring-blue-500/50 transition-all duration-500 group-hover:scale-110">
+                            <div className="w-20 h-20 bg-[#0c0d10] ring-1 ring-white/10 rounded-3xl flex items-center justify-center mb-8 shadow-2xl group-hover:ring-blue-500/50 transition-all duration-500">
                                 <Building2 className="h-8 w-8 text-blue-400" />
                                 <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-blue-600/90 backdrop-blur-md flex items-center justify-center text-xs font-bold text-white border border-white/20">01</div>
                             </div>
@@ -285,7 +286,7 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
 
                         {/* Step 2 */}
                         <div className="group relative z-10">
-                            <div className="w-20 h-20 bg-[#0c0d10] ring-1 ring-white/10 rounded-3xl flex items-center justify-center mb-8 shadow-2xl group-hover:ring-purple-500/50 transition-all duration-500 group-hover:scale-110">
+                            <div className="w-20 h-20 bg-[#0c0d10] ring-1 ring-white/10 rounded-3xl flex items-center justify-center mb-8 shadow-2xl group-hover:ring-purple-500/50 transition-all duration-500">
                                 <Truck className="h-8 w-8 text-purple-400" />
                                 <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-purple-600/90 backdrop-blur-md flex items-center justify-center text-xs font-bold text-white border border-white/20">02</div>
                             </div>
@@ -295,7 +296,7 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
 
                         {/* Step 3 */}
                         <div className="group relative z-10">
-                            <div className="w-20 h-20 bg-[#0c0d10] ring-1 ring-white/10 rounded-3xl flex items-center justify-center mb-8 shadow-2xl group-hover:ring-emerald-500/50 transition-all duration-500 group-hover:scale-110">
+                            <div className="w-20 h-20 bg-[#0c0d10] ring-1 ring-white/10 rounded-3xl flex items-center justify-center mb-8 shadow-2xl group-hover:ring-emerald-500/50 transition-all duration-500">
                                 <UserCheck className="h-8 w-8 text-emerald-400" />
                                 <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-emerald-600/90 backdrop-blur-md flex items-center justify-center text-xs font-bold text-white border border-white/20">03</div>
                             </div>
@@ -307,7 +308,7 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
             </section>
 
             {/* Core Features - Bento Grid Style */}
-            <section className="px-6 py-24 relative z-10 bg-mesh overflow-hidden">
+            <section className="px-6 pt-24 pb-12 relative z-10 bg-mesh overflow-hidden">
                 <div className="max-w-7xl mx-auto">
                     <div className="mb-16">
                         <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Network Protocols</h2>
@@ -359,29 +360,6 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
                 </div>
             </section>
 
-            {/* Global CTA - Immersive Banner */}
-            <section className="py-24 px-6 relative z-10">
-                <div className="max-w-7xl mx-auto rounded-[3rem] overflow-hidden relative group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600/90 to-purple-800/90 mix-blend-overlay"></div>
-                    <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1579684385127-1ef15d508118?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center brightness-[0.3]"></div>
-                    <div className="relative z-10 p-16 lg:p-24 flex flex-col items-center text-center">
-                        <h2 className="text-4xl lg:text-6xl font-black text-white mb-8 tracking-tighter leading-tight">
-                            STRENGTHEN YOUR <br />SUPPLY CHAIN TODAY
-                        </h2>
-                        <p className="text-white/70 text-lg lg:text-xl max-w-2xl mb-12 font-light">
-                            Join the network of verified manufacturers and distributors securing the future of global medicine.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
-                            <Button className="bg-white text-black hover:bg-zinc-200 px-12 h-16 rounded-2xl text-lg font-bold">
-                                Get Started
-                            </Button>
-                            <Button variant="secondary" className="px-12 h-16 rounded-2xl text-lg glass border-white/20">
-                                Technical Overview
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </section>
 
             {/* Scanner Modal */}
             {showScanner && (
@@ -404,10 +382,6 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
                 </div>
             )}
             
-            {/* Footer Padding */}
-            <div className="py-12 border-t border-white/5 mt-20 text-center">
-                <p className="text-zinc-600 text-xs tracking-widest uppercase font-bold">Secure Gateway Infrastructure • 2026</p>
-            </div>
         </div>
     );
 };

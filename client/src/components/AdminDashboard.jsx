@@ -142,10 +142,62 @@ export const AdminDashboard = () => {
                 throw new Error(data.message);
             }
 
+            // Optimistic update
+            const userToDelete = users.find(u => u._id === userId);
+            setUsers(prev => prev.filter(u => u._id !== userId));
+            
+            if (userToDelete && userToDelete.licenceStatus === 'pending') {
+                setStats(prev => prev ? {
+                    ...prev,
+                    pendingVerifications: Math.max(0, (prev.pendingVerifications || 0) - 1)
+                } : prev);
+            }
+
             setDeleteConfirm(null);
             fetchData();
         } catch (err) {
             setError(err.message);
+        }
+    };
+
+    const handleVerifyUser = async (userId, status) => {
+        try {
+            const token = sessionStorage.getItem('token');
+            
+            // Optimistic update for UI responsiveness
+            const oldUser = users.find(u => u._id === userId);
+            const oldStatus = oldUser && oldUser.licenceStatus ? oldUser.licenceStatus.toLowerCase() : 'pending';
+            
+            setUsers(prev => prev.map(u => u._id === userId ? { ...u, licenceStatus: status } : u));
+            setStats(prev => {
+                if (!prev) return prev;
+                let newPending = prev.pendingVerifications || 0;
+                if (oldStatus === 'pending' && status !== 'pending') {
+                    newPending = Math.max(0, newPending - 1);
+                } else if (oldStatus !== 'pending' && status === 'pending') {
+                    newPending += 1;
+                }
+                return { ...prev, pendingVerifications: newPending };
+            });
+
+            const response = await fetch(`/api/auth/admin/users/${userId}/verify`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': token
+                },
+                body: JSON.stringify({ status })
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message);
+            }
+
+            fetchData();
+        } catch (err) {
+            setError(err.message);
+            fetchData(); // Reset on error
         }
     };
 
@@ -461,23 +513,23 @@ export const AdminDashboard = () => {
 
             {/* Welcome Stats Card */}
             <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-down delay-100">
-                <Card className="col-span-1 md:col-span-2 !bg-gradient-to-br !from-rose-900/40 !to-red-900/40 border-red-500/20 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+                <Card className="col-span-1 md:col-span-2 !bg-[#0A0E1A] relative overflow-hidden" style={{ border: '0.5px solid rgba(255,255,255,0.1)' }}>
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -mr-32 -mt-32"></div>
                     <div className="relative z-10 p-2">
-                        <Badge variant="danger" className="mb-3">Admin Portal</Badge>
+                        <Badge variant="info" className="mb-3">Admin Portal</Badge>
                         <h2 className="text-2xl font-bold text-white mb-2">Welcome back, {sessionStorage.getItem('userName')}</h2>
                         <p className="text-zinc-400">System oversight, auditing, and global supply chain control center.</p>
                     </div>
                 </Card>
-                <Card className="!bg-gradient-to-br !from-blue-900/30 !to-indigo-900/30 border-blue-500/20 relative overflow-hidden flex items-center justify-center text-center">
+                <Card className="!bg-[#0A0E1A] relative overflow-hidden flex items-center justify-center text-center" style={{ border: '0.5px solid rgba(255,255,255,0.1)' }}>
                     <div className="relative z-10 p-2">
-                        <div className="mx-auto w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mb-3">
+                        <div className="mx-auto w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center mb-3">
                             <Shield className="h-6 w-6 text-blue-400" />
                         </div>
                         <h3 className="text-3xl font-bold text-white mb-1">
-                            {auditQueue.length}
+                            {stats?.pendingVerifications || 0}
                         </h3>
-                        <p className="text-zinc-400 text-sm">Pending Audits</p>
+                        <p className="text-zinc-400 text-sm">Pending Verifications</p>
                     </div>
                 </Card>
             </div>
@@ -525,11 +577,15 @@ export const AdminDashboard = () => {
                             Products by Status
                         </CardTitle>
                     </CardHeader>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {Object.entries(productStats.byStatus).map(([status, count]) => (
-                            <div key={status} className="p-3 rounded-lg bg-zinc-800/50 border border-white/5">
-                                <p className="text-2xl font-bold text-zinc-100">{count}</p>
-                                <p className="text-xs text-zinc-400">{status}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {[
+                            { label: 'Manufactured', key: 'Manufactured' },
+                            { label: 'In Transit', key: 'In Transit' },
+                            { label: 'Received at Pharmacy', key: 'Received at Pharmacy' }
+                        ].map(({ label, key }) => (
+                            <div key={key} className="p-3 rounded-lg bg-zinc-800/50 border border-white/5 min-w-[140px]">
+                                <p className="text-2xl font-bold text-zinc-100">{productStats.byStatus[key] || 0}</p>
+                                <p className="text-xs text-zinc-400">{label}</p>
                             </div>
                         ))}
                     </div>
@@ -577,8 +633,9 @@ export const AdminDashboard = () => {
                                 <thead>
                                     <tr className="border-b border-zinc-800">
                                         <th className="text-left py-3 px-4 text-zinc-400 font-medium">Company</th>
-                                        <th className="text-left py-3 px-4 text-zinc-400 font-medium">Phone</th>
                                         <th className="text-left py-3 px-4 text-zinc-400 font-medium">Role</th>
+                                        <th className="text-left py-3 px-4 text-zinc-400 font-medium">Licence Number</th>
+                                        <th className="text-left py-3 px-4 text-zinc-400 font-medium">Licence Status</th>
                                         <th className="text-left py-3 px-4 text-zinc-400 font-medium">Location</th>
                                         <th className="text-right py-3 px-4 text-zinc-400 font-medium">Actions</th>
                                     </tr>
@@ -587,24 +644,45 @@ export const AdminDashboard = () => {
                                     {users.map((user) => (
                                         <tr key={user._id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
                                             <td className="py-3 px-4 text-zinc-200">{user.companyName}</td>
-                                            <td className="py-3 px-4 text-zinc-400 font-mono text-sm">{user.phoneNumber}</td>
                                             <td className="py-3 px-4">
                                                 <Badge variant={getRoleBadgeVariant(user.role)}>{user.role}</Badge>
                                             </td>
+                                            <td className="py-3 px-4 text-zinc-400 font-mono text-sm">
+                                                {user.licenceNumber || <span className="text-zinc-500 italic">Not provided</span>}
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                {user.licenceStatus?.toLowerCase() === 'verified' && <Badge variant="success">Verified ✓</Badge>}
+                                                {user.licenceStatus?.toLowerCase() === 'pending' && <Badge variant="warning">Pending</Badge>}
+                                                {user.licenceStatus?.toLowerCase() === 'rejected' && <Badge variant="danger">Rejected</Badge>}
+                                                {(!user.licenceStatus || !['verified', 'pending', 'rejected'].includes(user.licenceStatus.toLowerCase())) && <Badge variant="warning">Pending</Badge>}
+                                            </td>
                                             <td className="py-3 px-4 text-zinc-400">{user.location}</td>
                                             <td className="py-3 px-4 text-right">
-                                                <button
-                                                    onClick={() => setEditingUser({ ...user })}
-                                                    className="p-2 hover:bg-zinc-700 rounded-lg transition-colors mr-1"
-                                                >
-                                                    <Edit className="h-4 w-4 text-blue-400" />
-                                                </button>
-                                                <button
-                                                    onClick={() => setDeleteConfirm(user)}
-                                                    className="p-2 hover:bg-zinc-700 rounded-lg transition-colors"
-                                                >
-                                                    <Trash2 className="h-4 w-4 text-red-400" />
-                                                </button>
+                                                <div className="flex justify-end items-center gap-2">
+                                                    {(user.licenceStatus?.toLowerCase() === 'verified') ? (
+                                                        <button
+                                                            onClick={() => handleVerifyUser(user._id, 'rejected')}
+                                                            className="px-3 py-1 text-xs font-medium border border-red-500/50 text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"
+                                                        >
+                                                            Reject
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleVerifyUser(user._id, 'verified')}
+                                                            title="Approve Licence"
+                                                            className="p-2 hover:bg-green-900/30 rounded-lg transition-colors group"
+                                                        >
+                                                            <CheckCircle className="h-4 w-4 text-green-500 group-hover:scale-110 transition-all" />
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => setDeleteConfirm(user)}
+                                                        title="Delete User"
+                                                        className="p-2 hover:bg-white/5 rounded-lg transition-colors group"
+                                                    >
+                                                        <Trash2 className="h-4 w-4 text-zinc-400 group-hover:text-red-400 group-hover:scale-110 transition-all" />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}

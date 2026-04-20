@@ -28,6 +28,13 @@ router.get('/stats', adminAuth, async (req, res) => {
         ]);
 
         const totalUsers = await User.countDocuments();
+        const pendingVerifications = await User.countDocuments({ 
+            $or: [
+                { licenceStatus: { $in: ['pending', 'Pending'] } },
+                { licenceStatus: { $exists: false } },
+                { licenceStatus: null }
+            ]
+        });
 
         // Format user stats
         const usersByRole = {};
@@ -37,6 +44,7 @@ router.get('/stats', adminAuth, async (req, res) => {
 
         res.json({
             totalUsers,
+            pendingVerifications,
             usersByRole,
             timestamp: new Date().toISOString()
         });
@@ -95,6 +103,32 @@ router.delete('/users/:id', adminAuth, async (req, res) => {
         await User.findByIdAndDelete(req.params.id);
 
         res.json({ message: 'User deleted successfully' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   PATCH /api/auth/admin/users/:id/verify
+// @desc    Update user licence status (Admin only)
+router.patch('/users/:id/verify', adminAuth, async (req, res) => {
+    const { status } = req.body;
+
+    if (!['pending', 'verified', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    try {
+        const user = await User.findById(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        user.licenceStatus = status;
+        await user.save();
+
+        res.json({ message: `Licence status updated to ${status}`, user });
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ message: 'Server error' });

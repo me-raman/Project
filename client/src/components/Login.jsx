@@ -1,95 +1,37 @@
 import React, { useState } from 'react';
-import { X, Phone, KeyRound, ArrowRight, Loader2, UserPlus, Info } from 'lucide-react';
+import { X, ArrowRight, Loader2, UserPlus, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { Button, Input } from './ui';
 
 export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
-    const [step, setStep] = useState('phone');
     const [formData, setFormData] = useState({
-        phoneNumber: '',
-        otp: ''
+        email: '',
+        password: ''
     });
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [flashSignUp, setFlashSignUp] = useState(false);
-    const [displayOtp, setDisplayOtp] = useState(''); 
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        if (name === 'phoneNumber' || name === 'otp') {
-            if (!/^\d*$/.test(value)) {
-                setError('Only numbers are allowed');
-                return;
-            }
-        }
         setFormData({ ...formData, [name]: value });
         setError('');
-        if (name === 'phoneNumber') setFlashSignUp(false);
+        if (name === 'email') setFlashSignUp(false);
     };
 
-    const handleSendOTP = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        setFlashSignUp(false);
-        setDisplayOtp('');
-
-        if (formData.phoneNumber.length !== 10) {
-            setError('Please enter a valid 10-digit phone number.');
-            setLoading(false);
-            return;
-        }
-
-        try {
-            const response = await fetch('/api/auth/check-phone', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phoneNumber: formData.phoneNumber })
-            });
-
-            const data = await response.json();
-
-            if (!data.exists) {
-                setError('Account does not exist.');
-                setFlashSignUp(true);
-                setLoading(false);
-                return;
-            }
-
-            const otpResponse = await fetch('/api/auth/send-otp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phoneNumber: formData.phoneNumber })
-            });
-
-            const otpData = await otpResponse.json();
-
-            if (!otpResponse.ok) {
-                throw new Error('Failed to send OTP');
-            }
-
-            if (otpData.otp) {
-                setDisplayOtp(otpData.otp);
-            }
-
-            setStep('otp');
-            setLoading(false);
-
-        } catch (err) {
-            setError(err.message || 'Failed to connect to server');
-            setLoading(false);
-        }
-    };
-
-    const handleVerifyOTP = async (e) => {
+    const handleEmailLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
 
         try {
-            const response = await fetch('/api/auth/login-otp', {
+            const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    email: formData.email,
+                    password: formData.password
+                })
             });
 
             const data = await response.json();
@@ -99,6 +41,8 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
                 sessionStorage.setItem('userRole', data.role);
                 sessionStorage.setItem('userName', data.name);
                 sessionStorage.setItem('userId', data.userId);
+                sessionStorage.setItem('licenceNumber', data.licenceNumber || '');
+                sessionStorage.setItem('licenceStatus', data.licenceStatus || 'Verified');
 
                 if (onLoginSuccess) {
                     onLoginSuccess(data);
@@ -107,10 +51,10 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
                     window.location.reload();
                 }
             } else {
-                setError(data.message || 'Invalid OTP');
+                setError(data.message || 'Invalid email or password');
             }
         } catch {
-            setError('Failed to verify OTP');
+            setError('Failed to sign in');
         } finally {
             setLoading(false);
         }
@@ -152,94 +96,81 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
                     )}
 
                     {/* Form */}
-                    <form onSubmit={step === 'phone' ? handleSendOTP : handleVerifyOTP} className="space-y-5">
-                        {step === 'phone' && (
-                            <div className="space-y-1.5 animate-fade-in">
-                                <label className="text-sm font-medium text-zinc-300">Phone number</label>
+                    <form onSubmit={handleEmailLogin} className="space-y-5">
+                        <div className="space-y-4 animate-fade-in">
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-zinc-300">Email address</label>
                                 <div className="relative group">
-                                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
+                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
                                     <Input
-                                        type="tel"
-                                        name="phoneNumber"
+                                        type="email"
+                                        name="email"
                                         required
-                                        maxLength="10"
                                         className="pl-12"
-                                        placeholder="10-digit number"
-                                        value={formData.phoneNumber}
+                                        placeholder="name@company.com"
+                                        value={formData.email}
                                         onChange={handleChange}
                                     />
                                 </div>
                             </div>
-                        )}
 
-                        {step === 'otp' && (
-                            <div className="space-y-4 animate-fade-in">
-                                {displayOtp && (
-                                    <div className="p-4 rounded-xl glass-accent flex items-start gap-3">
-                                        <Info className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
-                                        <div>
-                                            <p className="text-sm font-medium text-blue-400">Dev Mode: Your OTP</p>
-                                            <p className="text-2xl font-bold text-white tracking-widest mt-1">{displayOtp}</p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-zinc-300">One-time password</label>
-                                    <div className="relative group">
-                                        <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
-                                        <Input
-                                            type="text"
-                                            name="otp"
-                                            required
-                                            maxLength="6"
-                                            className="pl-12 tracking-widest text-lg font-bold text-center"
-                                            placeholder="000 000"
-                                            value={formData.otp}
-                                            onChange={handleChange}
-                                        />
-                                    </div>
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-sm font-medium text-zinc-300">Password</label>
+                                    <button type="button" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">Forgot password?</button>
+                                </div>
+                                <div className="relative group">
+                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
+                                    <Input
+                                        type={showPassword ? "text" : "password"}
+                                        name="password"
+                                        required
+                                        className="pl-12 pr-12"
+                                        placeholder="••••••••"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                    />
                                     <button
                                         type="button"
-                                        onClick={() => setStep('phone')}
-                                        className="text-sm text-blue-400 hover:text-blue-300 font-medium mt-3"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
                                     >
-                                        Change phone number
+                                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                                     </button>
                                 </div>
                             </div>
-                        )}
+                        </div>
 
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            disabled={loading}
-                            className="w-full text-lg mt-4 shadow-[0_0_20px_rgba(59,130,246,0.2)]"
-                        >
-                            {loading ? (
-                                <Loader2 className="h-5 w-5 animate-spin mx-auto" />
-                            ) : (
-                                <div className="flex items-center justify-center gap-2">
-                                    {step === 'phone' ? 'Send Access Code' : 'Secure Login'}
-                                    <ArrowRight className="h-5 w-5" />
-                                </div>
-                            )}
-                        </Button>
+                        <div className="space-y-4 pt-2">
+                            <Button
+                                type="submit"
+                                variant="primary"
+                                disabled={loading}
+                                className="w-full text-lg shadow-[0_0_20px_rgba(59,130,246,0.2)]"
+                            >
+                                {loading ? (
+                                    <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                                ) : (
+                                    <div className="flex items-center justify-center gap-2">
+                                        Sign In
+                                        <ArrowRight className="h-5 w-5" />
+                                    </div>
+                                )}
+                            </Button>
+                        </div>
                     </form>
 
                     {/* Sign up link */}
-                    {step === 'phone' && (
-                        <div className="mt-8">
-                            <Button
-                                variant="secondary"
-                                onClick={onSignUpClick}
-                                className={`w-full text-zinc-300 font-medium ${flashSignUp ? '!border-blue-500/50 !text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.15)] bg-blue-500/10' : ''}`}
-                            >
-                                <UserPlus className="h-5 w-5 mr-2" />
-                                {flashSignUp ? 'Create new account' : 'New user? Sign up here'}
-                            </Button>
-                        </div>
-                    )}
+                    <div className="mt-8">
+                        <Button
+                            variant="secondary"
+                            onClick={onSignUpClick}
+                            className={`w-full text-zinc-300 font-medium ${flashSignUp ? '!border-blue-500/50 !text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.15)] bg-blue-500/10' : ''}`}
+                        >
+                            <UserPlus className="h-5 w-5 mr-2" />
+                            {flashSignUp ? 'Create new account' : 'New user? Sign up here'}
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>

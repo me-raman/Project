@@ -61,8 +61,34 @@ mongoose.connect(process.env.MONGODB_URI, {
     family: 4, // Force IPv4
     tlsAllowInvalidCertificates: true // Bypass SSL certificate verification issue
 })
-    .then(() => {
+    .then(async () => {
         console.log('[Auth Service] MongoDB Connected');
+        
+        // Sync indexes: Automatically drops indexes removed from the schema
+        try {
+            console.log('[Maintenance] Syncing database indexes...');
+            const User = require('./models/User');
+            
+            // Drop specific obsolete phoneNumber index if it exists
+            const db = mongoose.connection.db;
+            const collections = await db.listCollections({ name: 'users' }).toArray();
+            if (collections.length > 0) {
+                const indexes = await db.collection('users').indexes();
+                const obsoleteIndex = indexes.find(idx => idx.key && idx.key.phoneNumber);
+                if (obsoleteIndex) {
+                    console.log(`[Maintenance] Dropping legacy index: ${obsoleteIndex.name}`);
+                    await db.collection('users').dropIndex(obsoleteIndex.name);
+                }
+            }
+            
+            // General sync for everything else
+            await User.syncIndexes();
+            console.log('[Maintenance] Database indexes synchronized successfully');
+        } catch (err) {
+            console.error('[Maintenance] Index sync warning:', err.message);
+            // Non-fatal error, service can still start
+        }
+
         app.listen(PORT, () => {
             console.log(`[Auth Service] Running on port ${PORT}`);
         });

@@ -217,8 +217,8 @@ export const ManufacturerDashboard = () => {
     return (
         <>
         <DashboardShell
-            title="Register products"
-            description="Generate unique identifiers for your product batch"
+            title="Create New Batch"
+            description="Generate QR codes for your medicine batch"
             icon={Package}
             actions={batchResults.length > 0 && (
                 <div className="flex gap-2">
@@ -233,27 +233,59 @@ export const ManufacturerDashboard = () => {
                 </div>
             )}
         >
-            {/* Welcome Stats Card */}
-            <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-down delay-100">
-                <Card className="col-span-1 md:col-span-2 !bg-gradient-to-br !from-blue-900/40 !to-purple-900/40 border-blue-500/20 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
-                    <div className="relative z-10 p-2">
-                        <Badge variant="info" className="mb-3">Manufacturer Portal</Badge>
-                        <h2 className="text-2xl font-bold text-white mb-2">Welcome back, {sessionStorage.getItem('userName')}</h2>
-                        <p className="text-zinc-400">Total batches created: <span className="text-white font-medium">{recentBatches.length}</span></p>
-                    </div>
-                </Card>
-                <Card className="!bg-gradient-to-br !from-emerald-900/30 !to-cyan-900/30 border-emerald-500/20 relative overflow-hidden flex items-center justify-center text-center">
-                    <div className="relative z-10 p-2">
-                        <div className="mx-auto w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mb-3">
-                            <Package className="h-6 w-6 text-emerald-400" />
+            {/* Welcome Card */}
+            <div className="mb-6 animate-slide-down delay-100">
+                <Card className="!bg-[#0A0E1A] border-white/5 relative overflow-hidden p-8">
+                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div>
+                            <Badge variant="info" className="mb-4 bg-blue-500/10 text-blue-400 border-blue-500/20 px-3 py-1 uppercase tracking-widest text-[10px] font-bold">Manufacturer Portal</Badge>
+                            <h2 className="text-3xl font-bold text-white mb-2">Welcome back, {sessionStorage.getItem('userName')}</h2>
+                            <p className="text-zinc-500 max-w-md leading-relaxed">System authenticated. Monitor your production batches and manage secure assets across the supply chain.</p>
                         </div>
-                        <h3 className="text-3xl font-bold text-white mb-1">
-                            {recentBatches.reduce((acc, batch) => acc + (batch.unitCount || 0), 0)}
-                        </h3>
-                        <p className="text-zinc-400 text-sm">Total Units Minted</p>
+                        
+                        <div className="flex items-center bg-white/[0.02] p-6 rounded-2xl border border-white/5 shadow-inner">
+                            <div className="text-center px-6">
+                                <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest mb-1.5 opacity-70">Total batches created</p>
+                                <p className="text-3xl font-black text-white leading-none">{recentBatches.length}</p>
+                            </div>
+                            <div className="w-px h-12 bg-white/5 mx-2"></div>
+                            <div className="text-center px-6">
+                                <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest mb-1.5 opacity-70">Total QR Codes Generated</p>
+                                <p className="text-3xl font-black text-white leading-none">
+                                    {recentBatches.reduce((acc, batch) => acc + (batch.unitCount || 0), 0)}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </Card>
+            </div>
+
+            {/* Account Status Banner */}
+            <div className="mb-8 animate-fade-in delay-200">
+                {sessionStorage.getItem('licenceStatus') === 'Verified' && (
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 w-fit">
+                        <CheckCircle className="h-4 w-4 text-emerald-500" />
+                        <span className="text-sm font-medium text-emerald-400">
+                            Licence Verified ✓ <span className="text-zinc-500 font-mono ml-2">{sessionStorage.getItem('licenceNumber')}</span>
+                        </span>
+                    </div>
+                )}
+                {sessionStorage.getItem('licenceStatus') === 'Pending' && (
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 w-fit">
+                        <AlertCircle className="h-4 w-4 text-amber-500" />
+                        <span className="text-sm font-medium text-amber-400">
+                            Licence Pending Verification
+                        </span>
+                    </div>
+                )}
+                {sessionStorage.getItem('licenceStatus') === 'Rejected' && (
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 w-fit">
+                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <span className="text-sm font-medium text-red-400">
+                            Licence Rejected — Contact Support
+                        </span>
+                    </div>
+                )}
             </div>
             {/* Status Messages */}
             {success && (
@@ -320,8 +352,8 @@ export const ManufacturerDashboard = () => {
                 /* Form View */
                 <Card>
                     <CardHeader>
-                        <CardTitle>Batch details</CardTitle>
-                        <CardDescription>Enter product information to generate QR codes</CardDescription>
+                        <CardTitle>Batch Information</CardTitle>
+                        <CardDescription>Enter product information to generate secure cryptographic QR codes</CardDescription>
                     </CardHeader>
 
                     <form onSubmit={handleBatchSubmit} className="space-y-5">

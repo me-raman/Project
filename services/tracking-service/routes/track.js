@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const authorize = require('../middleware/authorize');
 const Product = require('../models/Product');
@@ -17,6 +18,49 @@ router.get('/user/history', auth, async (req, res) => {
             .limit(10);
 
         res.json(history);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   GET /api/track/user/stats
+// @desc    Get performance statistics for the current user
+router.get('/user/stats', auth, async (req, res) => {
+    try {
+        const userId = new mongoose.Types.ObjectId(req.user.userId);
+        const role = req.user.role;
+        let stats = {};
+
+        if (role === 'Manufacturer') {
+            const batches = await Product.distinct('batchNumber', { manufacturer: userId });
+            const units = await Product.countDocuments({ manufacturer: userId });
+            stats = {
+                totalBatches: batches.length,
+                totalUnits: units
+            };
+        } else if (role === 'Distributor') {
+            const handoffs = await Tracking.countDocuments({ handler: userId });
+            const batches = await Tracking.aggregate([
+                { $match: { handler: userId } },
+                { $lookup: { from: 'products', localField: 'product', foreignField: '_id', as: 'p' } },
+                { $unwind: '$p' },
+                { $group: { _id: '$p.batchNumber' } }
+            ]);
+            stats = {
+                totalHandoffs: handoffs,
+                totalBatches: batches.length
+            };
+        } else if (role === 'Pharmacy') {
+            const received = await Tracking.countDocuments({ handler: userId, status: 'Received at Pharmacy' });
+            const dispensed = await Tracking.countDocuments({ handler: userId, status: 'Dispensed' });
+            stats = {
+                totalReceived: received,
+                totalDispensed: dispensed
+            };
+        }
+
+        res.json(stats);
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ message: 'Server error' });
