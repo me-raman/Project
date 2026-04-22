@@ -91,16 +91,12 @@ router.post('/batch', auth, authorize('Manufacturer'), validateBatch, handleVali
         const manufacturer = await User.findById(req.user.userId);
         const location = manufacturer.location || 'Unknown Location';
 
-        console.log(`[DEBUG] Checking duplicate for: Mfg: ${req.user.userId}, Name: '${name}', Batch: '${batchNumber}'`);
-
         // Check if batch already exists for this product name and manufacturer
         const existingBatch = await Product.findOne({
             manufacturer: req.user.userId,
             name: name,
             batchNumber: batchNumber
         });
-
-        console.log(`[DEBUG] Existing Batch Found:`, existingBatch ? 'YES' : 'NO');
 
         if (existingBatch) {
             return res.status(400).json({
