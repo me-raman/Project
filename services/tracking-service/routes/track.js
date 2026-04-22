@@ -3,6 +3,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const authorize = require('../middleware/authorize');
+const requireCoords = require('../middleware/requireCoords');
 const Product = require('../models/Product');
 const Tracking = require('../models/Tracking');
 const User = require('../models/User');
@@ -69,7 +70,7 @@ router.get('/user/stats', auth, async (req, res) => {
 
 // @route   POST /api/track/:id
 // @desc    Add tracking update (Admin, Distributor, Pharmacy only)
-router.post('/:id', auth, authorize('Admin', 'Distributor', 'Pharmacy'), async (req, res) => {
+router.post('/:id', auth, authorize('Admin', 'Distributor', 'Pharmacy'), requireCoords('Admin'), async (req, res) => {
     const { status, location, notes, latitude, longitude } = req.body;
     const productId = req.params.id;
 

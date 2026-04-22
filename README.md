@@ -1,494 +1,229 @@
-# 💊 PharmaTrace — Pharmaceutical Supply Chain Tracking System
+# 💊 PharmaTrace
 
-> A full-stack microservices application for tracking and verifying pharmaceutical products through the entire supply chain — from manufacturer to pharmacy — with built-in anti-counterfeiting, QR code verification, GPS tracking, and anomaly detection.
+**The Intelligent, Cryptographically-Secure Pharmaceutical Supply Chain Platform**
 
----
+> 🔒 **SYSTEM STATUS:** Cryptography [**ACTIVE**]  |  Anti-Counterfeit Locks [**ENGAGED**]  |  GPS Tracking [**MANDATORY**]
 
-## 📋 Table of Contents
+PharmaTrace is a sophisticated, full-stack microservices application designed from the ground up to eradicate counterfeit drugs from the global supply chain. It provides end-to-end visibility—from the moment a batch is manufactured, through distribution logistics, down to the final retail pharmacy and end consumer.
 
-- [Overview](#overview)
-- [Key Features](#key-features)
-- [Architecture](#architecture)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Database Schema](#database-schema)
-- [API Reference](#api-reference)
-- [User Roles](#user-roles)
-- [Security Features](#security-features)
-- [Getting Started](#getting-started)
-- [Deployment](#deployment)
-- [Environment Variables](#environment-variables)
+By synthesizing **cryptographic verification**, **mandatory geolocation tracking**, and **anomaly detection heuristics**, PharmaTrace ensures that every medication reaching a patient is authentic, tracked, and safe.
 
 ---
 
-## Overview
+## ✨ The Liquid Glass Experience
 
-**PharmaTrace** is a pharmaceutical Track-and-Trace system designed to combat counterfeit drugs in the supply chain. It enables manufacturers to register products with QR codes, distributors to log transfers, and end consumers to verify product authenticity by scanning the QR code at a pharmacy.
+PharmaTrace abandons the sterile, dated aesthetics of traditional enterprise software. We've pioneered the **"Liquid Glass" Design System** to deliver a hyper-modern, immersive user experience:
 
-The system uses a **microservices architecture** with four independent backend services communicating through an API Gateway, and a React-based frontend for all user interactions.
-
----
-
-## Key Features
-
-| Feature | Description |
-|---|---|
-| 🔐 **OTP-Based Authentication** | Phone number login with 6-digit OTP (simulated SMS) |
-| 📦 **Batch Product Registration** | Manufacturers create single or batch products with auto-generated IDs |
-| 📱 **QR Code Generation & Scanning** | HMAC-signed QR codes with tamper detection |
-| 🗺️ **GPS Location Tracking** | Silent geolocation capture at manufacturing and distribution stages |
-| 🔒 **Scan-Count Lock** | First consumer scan locks the product; subsequent scans flag potential counterfeiting |
-| 🚨 **Product Recall System** | Admins can recall entire batches with reason tracking |
-| 🌍 **Impossible Travel Detection** | Haversine-formula-based anomaly detection (threshold: 900 km/h) |
-| 📊 **Admin Dashboard** | Analytics, batch management, anomaly reports, and user management |
-| 🏭 **Manufacturer Dashboard** | Product/batch creation, QR code generation, recent batch overview |
-| 🚚 **Distributor Dashboard** | QR scan-based tracking updates with GPS |
-| ✅ **Public Verification Portal** | Consumers can verify product authenticity and view the full supply chain timeline |
+*   **Dynamic Dark Mode:** Deep, rich background meshes (`#0A0E1A`) layered with subtle accent lighting.
+*   **Volumetric Translucency:** Extreme frosted glass aesthetics (`backdrop-filter: blur(40px)`) that adapt to contextual layers beneath.
+*   **Performant Micro-Animations:** Shimmering buttons, pulsing glows on critical alerts, and fluid route transitions using custom keyframes (`animate-float`, `animate-pulse-glow`).
+*   **Information Density:** High-contrast data visualization without visual clutter, utilizing Google's `Inter` and `Plus Jakarta Sans` typography.
 
 ---
 
-## Architecture
+## 🛡️ Core Security Pillars
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    FRONTEND (React + Vite)               │
-│                   http://localhost:5173                   │
-│                                                          │
-│  ┌──────────┐  ┌──────────────┐  ┌───────────────────┐  │
-│  │   Home   │  │  Dashboards  │  │  Product Details   │  │
-│  │  (Public) │  │ Mfr/Dist/Adm│  │  (Verification)   │  │
-│  └──────────┘  └──────────────┘  └───────────────────┘  │
-└──────────────────────┬──────────────────────────────────┘
-                       │  /api/*  (Vite Proxy)
-                       ▼
-┌──────────────────────────────────────────────────────────┐
-│              API GATEWAY (Express + http-proxy-middleware)│
-│                   http://localhost:3000                    │
-│                                                           │
-│  • CORS policy           • Rate limiting (100 req/15min)  │
-│  • Service warm-up       • Request logging                │
-│  • Health monitoring      • Route-based proxying           │
-└───────┬────────────────┬─────────────────┬───────────────┘
-        │                │                 │
-   /api/auth        /api/product       /api/track
-        │                │                 │
-        ▼                ▼                 ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────────┐
-│ Auth Service │ │Product Service│ │ Tracking Service │
-│  Port: 3001  │ │  Port: 3002  │ │   Port: 3003     │
-│              │ │              │ │                   │
-│ • Register   │ │ • CRUD       │ │ • Add tracking    │
-│ • OTP Login  │ │ • Batch gen  │ │ • Get history     │
-│ • JWT verify │ │ • QR signing │ │ • Impossible      │
-│ • Admin CRUD │ │ • Verify     │ │   travel detect   │
-│              │ │ • Recall     │ │ • Geo verification│
-│              │ │ • Anomalies  │ │                   │
-└──────┬───────┘ └──────┬───────┘ └────────┬──────────┘
-       │                │                  │
-       └────────────────┼──────────────────┘
-                        ▼
-            ┌────────────────────┐
-            │   MongoDB Atlas    │
-            │   (Shared DB:      │
-            │   pharmatrace)     │
-            └────────────────────┘
+PharmaTrace was engineered with a "zero-trust" supply chain philosophy. Our multifaceted security suite includes:
+
+### 1. Cryptographic Verification (HMAC-SHA256)
+Every product is generated with a unique QR code. The payload isn't just an ID; it includes an HMAC-SHA256 digital signature verified server-side. Forged or completely fabricated QR codes immediately trigger an `INVALID_SIGNATURE` alert.
+
+### 2. Anti-Counterfeit Lock
+The physical supply chain works on a principle of custody. When a consumer scans a product, the system intrinsically **locks** it to that consumer's identity. Any subsequent scan by a different individual triggers a `POTENTIAL_COUNTERFEIT` warning, exposing duplicated QR codes.
+
+### 3. Mandatory GPS & Geo-Cloning Detection
+All operational actions—manufacturing a batch, distributor handoffs, and pharmacy receipts—**mandate** precise GPS coordinates. The system actively monitors for "Geo-Cloning" during consumer verifications; if identical codes are scanned >50km apart, the system registers a critical anomaly.
+
+### 4. Impossible Travel Detection (Haversine Anomaly)
+The tracking microservice actively calculates the Haversine distance between sequential supply chain events. If a batch "travels" at a speed exceeding commercial jet capabilities (>900 km/h), the event is flagged and quarantined in the Admin Anomaly Dashboard.
+
+### 5. Automated Random Audits
+To prevent systemic complacency, the batch generation engine enforces a probabilistic (5%) random audit selector. Flagged batches require manual administrative clearance before they can enter the consumer distribution pool.
+
+---
+
+## 🏗️ Microservices Architecture
+
+Architected for resilience and scalability, the backend is split into bounded contexts, governed by a specialized API Gateway.
+
+```mermaid
+graph TD
+    UI[Frontend Client: React + Vite] -->|/api/* proxy| Gateway(API Gateway: Port 3000)
+    
+    subgraph Core Services
+    Gateway -->|/api/auth| Auth[Auth Service: 3001]
+    Gateway -->|/api/product| Product[Product Service: 3002]
+    Gateway -->|/api/track| Track[Tracking Service: 3003]
+    end
+    
+    Auth --> DB[(MongoDB Atlas)]
+    Product --> DB
+    Track --> DB
 ```
 
----
-
-## Tech Stack
-
-### Frontend
-| Technology | Purpose |
-|---|---|
-| **React 19** | UI framework |
-| **Vite 7** | Build tool & dev server |
-| **Tailwind CSS 4** | Utility-first styling |
-| **Lucide React** | Icon library |
-| **html5-qrcode** | QR code scanning (camera-based) |
-| **react-qr-code** | QR code generation |
-
-### Backend
-| Technology | Purpose |
-|---|---|
-| **Node.js + Express** | REST API framework (all services) |
-| **Mongoose** | MongoDB ODM |
-| **MongoDB Atlas** | Cloud database |
-| **JSON Web Tokens (JWT)** | Authentication |
-| **bcryptjs** | Password hashing |
-| **http-proxy-middleware** | API Gateway proxying |
-| **express-rate-limit** | Rate limiting |
-
-### DevOps
-| Technology | Purpose |
-|---|---|
-| **Render** | Production deployment (render.yaml blueprint) |
-| **Vercel** | Frontend hosting |
+*   **API Gateway:** Handles unified CORS policies, aggressive rate limiting (100 req/15min), service proxying, and global request logging.
+*   **Auth Service:** Manages JWT issuance, OTP-based phone verification (passwordless), and Role-Based Access Control (RBAC).
+*   **Product Service:** Controls batch generation, QR HMAC signing, quantity locking, auditing logic, and recall management.
+*   **Tracking Service:** Records custody handoffs, enforces mandatory geolocation, and executes Haversine impossibility checks.
 
 ---
 
-## Project Structure
+## 🚀 Role-Based Features
 
-```
+| Role | Core Capabilities |
+| :--- | :--- |
+| **👩‍🔬 Manufacturer** | • Register single/batch products<br>• Generate signed QR codes<br>• Monitor active "Available to Ship" inventory |
+| **🚚 Distributor** | • Perform mandatory GPS-tracked custody handoffs<br>• Verify active cargo transit states |
+| **🏥 Pharmacy** | • Finalize supply chain closure ("Received at Pharmacy")<br>• View local product authenticity |
+| **👤 Consumer** | • Public QR verification portal<br>• Full timeline history view<br>• Initiates Anti-Counterfeit Lock |
+| **👑 Admin** | • Execute systemic batch recalls<br>• Resolve automated Random Audits<br>• Monitor Impossible Travel anomalies |
+
+---
+
+## 💻 Tech Stack
+
+### Frontend Environment
+*   **Framework:** React 19 + DOM
+*   **Build Tool:** Vite 7 (High-performance HMR)
+*   **Styling:** Tailwind CSS 4 (Utility-first with custom Liquid Glass primitives)
+*   **Icons:** Lucide React
+*   **Peripherals:** `html5-qrcode` (camera array scanning), `react-qr-code`
+
+### Backend Environment
+*   **Runtime:** Node.js (v18+)
+*   **Framework:** Express.js (RESTful APIs)
+*   **Database:** MongoDB Atlas (Mongoose ODM)
+*   **Security:** `bcryptjs`, `jsonwebtoken` (JWT), `crypto` (HMAC), `express-rate-limit`
+*   **Network:** `http-proxy-middleware`
+
+---
+
+## 🛠️ Project Structure
+
+```text
 PharmaTrace/
-├── client/                          # Frontend (React + Vite)
+├── client/                     # React/Vite SPA
 │   ├── src/
-│   │   ├── main.jsx                 # App entry point
-│   │   ├── App.jsx                  # Root component, routing, state
-│   │   ├── index.css                # Global styles + Tailwind
-│   │   ├── App.css                  # App-specific styles
-│   │   ├── mockData.js              # Sample data for testing
-│   │   ├── pages/
-│   │   │   ├── Home.jsx             # Landing page + role-based dashboard routing
-│   │   │   └── ProductDetails.jsx   # Product verification results page
-│   │   └── components/
-│   │       ├── Layout.jsx           # Navbar + Footer
-│   │       ├── Login.jsx            # OTP-based login modal
-│   │       ├── SignUp.jsx           # Registration form
-│   │       ├── Scanner.jsx          # QR code scanner (camera)
-│   │       ├── ProductCard.jsx      # Product summary card
-│   │       ├── Timeline.jsx         # Supply chain timeline visualization
-│   │       ├── ManufacturerDashboard.jsx  # Product creation, batch gen, QR codes
-│   │       ├── DistributorDashboard.jsx   # Scan & track product updates
-│   │       ├── AdminDashboard.jsx         # Full admin panel (stats, recalls, users)
-│   │       ├── layout/              # Layout sub-components
-│   │       └── ui/                  # Reusable UI primitives (Button, Card, Badge)
-│   ├── public/                      # Static assets
-│   ├── vite.config.js               # Vite config with API proxy
-│   └── package.json                 # Frontend dependencies
+│   │   ├── components/         # Liquid Glass layout, dashboards, and primitives
+│   │   ├── pages/              # Routing boundaries (Home, Profile, Verifications)
+│   │   ├── App.jsx             # React Router topology
+│   │   └── index.css           # Global design system tokens
+│   └── package.json
 │
-├── services/                        # Backend Microservices
-│   ├── api-gateway/                 # API Gateway (Port 3000)
-│   │   ├── index.js                 # Proxy routing, CORS, rate limiting
-│   │   └── package.json
-│   │
-│   ├── auth-service/                # Authentication Service (Port 3001)
-│   │   ├── index.js                 # Service entry point
-│   │   ├── models/
-│   │   │   ├── User.js              # User schema (roles, phone, company)
-│   │   │   └── Otp.js               # OTP schema (auto-expires in 5 min)
-│   │   ├── routes/
-│   │   │   ├── auth.js              # Register, OTP send/verify, token verify
-│   │   │   └── admin.js             # User CRUD (admin-only)
-│   │   ├── middleware/
-│   │   │   ├── auth.js              # JWT verification middleware
-│   │   │   └── adminAuth.js         # Admin-only middleware
-│   │   └── package.json
-│   │
-│   ├── product-service/             # Product Service (Port 3002)
-│   │   ├── index.js                 # Service entry point
-│   │   ├── models/
-│   │   │   ├── Product.js           # Product schema (tracking, recall, GPS)
-│   │   │   ├── Tracking.js          # Tracking event schema
-│   │   │   └── User.js              # Shared user reference
-│   │   ├── routes/
-│   │   │   └── product.js           # Product CRUD, batch gen, verify, recall, anomalies
-│   │   ├── utils/
-│   │   │   └── qrSecurity.js        # HMAC-SHA256 QR code signing & verification
-│   │   ├── middleware/
-│   │   │   ├── auth.js              # JWT verification
-│   │   │   └── authorize.js         # Role-based authorization
-│   │   └── package.json
-│   │
-│   └── tracking-service/           # Tracking Service (Port 3003)
-│       ├── index.js                 # Service entry point
-│       ├── models/
-│       │   ├── Product.js           # Shared product reference
-│       │   ├── Tracking.js          # Tracking event schema (geo-verified)
-│       │   └── User.js              # Shared user reference
-│       ├── routes/
-│       │   └── track.js             # Add tracking updates, get history
-│       ├── utils/
-│       │   └── geoUtils.js          # Haversine distance + impossible travel detection
-│       ├── middleware/
-│       │   ├── auth.js              # JWT verification
-│       │   └── authorize.js         # Role-based authorization
-│       └── package.json
+├── services/                   # Backend Monorepo
+│   ├── api-gateway/            # Unified entry point
+│   ├── auth-service/           # Identity & Authentication domain
+│   ├── product-service/        # Merchandise catalog & batch engine
+│   └── tracking-service/       # Geographical custody ledger
 │
-├── server/                          # Legacy monolithic backend (deprecated)
-│   ├── index.js                     # Old entry point
-│   ├── seed.js                      # Database seeding script
-│   └── src/                         # Old routes, models, middleware
-│
-├── .env                             # Environment variables (root)
-├── .gitignore                       # Git ignore rules
-├── render.yaml                      # Render deployment blueprint
-├── start-microservices.sh           # Script to start all services locally
-└── README.md                        # This file
+├── start-microservices.sh      # Local dev orchestrator
+├── render.yaml                 # Production IaC Blueprint
+└── .env.example                # Template for required environment variables
 ```
 
 ---
 
-## Database Schema
+## 🚦 API Reference Quick Look
 
-### User
-```
-{
-  username:    String (required, unique)
-  password:    String (optional — OTP-based login)
-  role:        Enum ['Admin', 'Manufacturer', 'Distributor', 'Pharmacy', 'Retailer', 'Customer']
-  companyName: String (required)
-  location:    String (required)
-  phoneNumber: String (required, unique)
-}
-```
-
-### Product
-```
-{
-  productId:               String (required, unique, indexed)
-  name:                    String (required)
-  manufacturer:            ObjectId → User
-  batchNumber:             String (required)
-  serialNumber:            String (required)
-  mfgDate:                 Date (required)
-  expDate:                 Date (required)
-  currentStatus:           String (default: 'Manufactured')
-  currentLocation:         String
-  currentHandler:          ObjectId → User
-  manufacturerLatitude:    Number
-  manufacturerLongitude:   Number
-  manufacturerGeoTimestamp:Date
-  scanCount:               Number (default: 0)
-  isLocked:                Boolean (default: false)
-  lockedBy:                String
-  lockedAt:                Date
-  isRecalled:              Boolean (default: false)
-  recallReason:            String
-  recalledAt:              Date
-  recalledBy:              ObjectId → User
-}
-```
-
-### Tracking
-```
-{
-  product:     ObjectId → Product (required)
-  handler:     ObjectId → User (required)
-  location:    String (required)
-  status:      String (required)
-  timestamp:   Date (default: now)
-  notes:       String
-  latitude:    Number
-  longitude:   Number
-  geoVerified: Boolean (default: true)
-}
-```
-
-### OTP
-```
-{
-  phoneNumber: String (required, unique)
-  otp:         String (required)
-  createdAt:   Date (auto-expires after 5 minutes via TTL index)
-}
-```
-
----
-
-## API Reference
+All requests expect Bearer JWT authentication (except public endpoints).
 
 ### Auth Service (`/api/auth`)
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/api/auth/register` | — | Register a new user |
-| `POST` | `/api/auth/check-phone` | — | Check if phone number exists |
-| `POST` | `/api/auth/send-otp` | — | Send OTP to phone number |
-| `POST` | `/api/auth/login-otp` | — | Verify OTP and get JWT token |
-| `GET`  | `/api/auth/verify` | JWT | Verify token and get user data |
-
-### Admin Routes (`/api/auth/admin`)
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/api/auth/admin/users` | Admin | Get all users |
-| `GET` | `/api/auth/admin/stats` | Admin | Get system statistics |
-| `PUT` | `/api/auth/admin/users/:id` | Admin | Update a user |
-| `DELETE` | `/api/auth/admin/users/:id` | Admin | Delete a user |
+*   `POST /register` - Provision new identity
+*   `POST /send-otp` - Dispatch authentication challenge
+*   `POST /login-otp` - Resolve challenge -> Receive JWT
+*   `GET /admin/users` - (Admin) Fetch total system identities
 
 ### Product Service (`/api/product`)
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/api/product` | Manufacturer | Create a single product |
-| `POST` | `/api/product/batch` | Manufacturer | Batch-create multiple products |
-| `GET`  | `/api/product/:id` | — | Get product by ID (public) |
-| `POST` | `/api/product/verify/:id` | — | Verify product (signature + scan lock) |
-| `GET`  | `/api/product/manufacturer/recent` | Manufacturer | Get recent batches |
-| `GET`  | `/api/product/admin/stats` | Admin | Product statistics |
-| `GET`  | `/api/product/admin/batches` | Admin | All batches (grouped) |
-| `GET`  | `/api/product/admin/batch/:batchNumber` | Admin | Units in a batch |
-| `POST` | `/api/product/admin/recall` | Admin | Recall an entire batch |
-| `GET`  | `/api/product/admin/anomalies` | Admin | Detect anomalies |
+*   `POST /batch` - (Manufacturer) Execute high-volume generation w/ quantity locks
+*   `GET /:id` - (Public) Retrieve asset metadata
+*   `POST /verify/:id` - (Public) Execute cryptographic & behavioral analysis of scan
+*   `POST /admin/recall` - (Admin) Quell compromised batches globally
 
 ### Tracking Service (`/api/track`)
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/api/track/:id` | Distributor/Pharmacy/Admin | Add tracking update |
-| `GET`  | `/api/track/:id` | — | Get tracking history |
-| `GET`  | `/api/track/user/history` | JWT | Get current user's tracking history |
-
-### Health Checks
-
-| Endpoint | Service |
-|----------|---------|
-| `GET /health` | API Gateway + warm-up all services |
-| `GET /health` | Auth Service (port 3001) |
-| `GET /health` | Product Service (port 3002) |
-| `GET /health` | Tracking Service (port 3003) |
+*   `POST /:id` - (Distributor/Pharmacy) Append custody event (mandates GPS)
+*   `GET /:id` - (Public) Access immutable timeline ledger
 
 ---
 
-## User Roles
-
-| Role | Capabilities |
-|------|-------------|
-| **Admin** | Full control: user management, batch recalls, anomaly detection, stats |
-| **Manufacturer** | Register products (single/batch), generate signed QR codes |
-| **Distributor** | Scan QR codes and add tracking updates (one update per product) |
-| **Pharmacy** | Receive products and update final tracking status |
-| **Customer** | Verify product authenticity via public portal |
-
----
-
-## Security Features
-
-### 1. QR Code Signing (HMAC-SHA256)
-- Each QR code payload is signed: `productId.signature`
-- Signature = first 16 characters of `HMAC-SHA256(productId, JWT_SECRET)`
-- On scan, the signature is verified server-side before returning product data
-- Tampered/forged QR codes return `INVALID_SIGNATURE` warning
-
-### 2. Scan-Count Lock (Anti-Counterfeiting)
-- First consumer scan **locks** the product to that user
-- Subsequent scans by different users return `POTENTIAL_COUNTERFEIT` warning
-- Supply chain roles (Manufacturer, Distributor, Admin) bypass the lock
-
-### 3. Impossible Travel Detection
-- Uses the **Haversine formula** to calculate distance between GPS coordinates
-- If calculated speed exceeds **900 km/h** (above commercial jet speed), the event is flagged
-- Flagged events have `geoVerified: false` and appear in the Admin anomaly dashboard
-
-### 4. Rate Limiting
-- API Gateway: 100 requests per 15 minutes
-- Auth endpoints: 10 login attempts per 15 minutes
-- OTP requests: 5 per hour
-
-### 5. JWT Authentication
-- Tokens expire after 5 days
-- Required `JWT_SECRET` environment variable (server won't start without it)
-
----
-
-## Getting Started
+## 🏁 Getting Started (Local Development)
 
 ### Prerequisites
-- **Node.js** (v18+)
-- **npm**
-- **MongoDB Atlas** account (or local MongoDB)
+*   Node.js (v18 or higher)
+*   npm or yarn
+*   A localized or Cloud MongoDB instance URI
 
-### 1. Clone the repository
+### 1. Repository Setup
 ```bash
-git clone <repository-url>
-cd Project
+git clone https://github.com/your-org/PharmaTrace.git
+cd PharmaTrace
 ```
 
-### 2. Configure environment variables
-Create a `.env` file in the project root (see [Environment Variables](#environment-variables)).
-
-### 3. Start all backend microservices
-```bash
-bash start-microservices.sh
+### 2. Environment Configuration
+Create a `.env` file in the root directory (matching the services' requirement):
+```env
+NODE_ENV=development
+MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/pharmatrace
+JWT_SECRET=your_super_secret_cryptographic_key_64_chars
+JWT_EXPIRY=5d
+FRONTEND_URL=http://localhost:5173
+GATEWAY_PORT=3000
+AUTH_SERVICE_PORT=3001
+PRODUCT_SERVICE_PORT=3002
+TRACKING_SERVICE_PORT=3003
 ```
-This starts:
-- Auth Service — `http://localhost:3001`
-- Product Service — `http://localhost:3002`
-- Tracking Service — `http://localhost:3003`
-- API Gateway — `http://localhost:3000`
 
-### 4. Start the frontend (in a new terminal)
+### 3. Initialize Backend Microservices
+We provide an orchestration script to quickly boot the entire backend topology.
+```bash
+# Ensure execution permissions
+chmod +x start-microservices.sh 
+
+# Start mapping
+./start-microservices.sh
+```
+
+### 4. Initialize Frontend Interface
+In a new terminal instance:
 ```bash
 cd client
 npm install
 npm run dev
 ```
-Frontend runs at `http://localhost:5173` with hot reload.
-
-### 5. Open the app
-Visit **http://localhost:5173** in your browser.
-
-### Stopping services
-Press `Ctrl+C` in the terminal running `start-microservices.sh`.
+Navigate your browser to `http://localhost:5173`.
 
 ---
 
-## Deployment
+## 🌐 Deployment Configuration
 
-The project is configured for deployment on **Render** using the `render.yaml` blueprint:
+PharmaTrace relies on a decoupled deployment strategy:
 
-| Service | Render Name | Type |
-|---------|-------------|------|
-| API Gateway | `pharmatrace-gateway` | Web Service |
-| Auth Service | `pharmatrace-auth` | Web Service |
-| Product Service | `pharmatrace-product` | Web Service |
-| Tracking Service | `pharmatrace-tracking` | Web Service |
-| Frontend | Deployed on **Vercel** | Static Site |
+### Backend Services (Render)
+The repository includes a `render.yaml` Infrastructure-as-Code blueprint. Deploying to Render via Git connection will automatically provision and interlink the API Gateway, Auth, Product, and Tracking web services on independent compute nodes.
 
-**Production URL**: `https://pharmatrace-zeta.vercel.app`
+### Frontend Client (Vercel)
+The `client/` directory is isolated and pre-configured for Vercel deployment. Import the repository sub-directory to Vercel, attach the production `VITE_API_URL` environment variable pointing to your deployed API Gateway, and deploy.
 
 ---
 
-## Environment Variables
+## 🤝 Contributing
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `NODE_ENV` | Environment mode | `development` |
-| `MONGODB_URI` | MongoDB connection string | `mongodb+srv://...` |
-| `JWT_SECRET` | Secret key for JWT + QR signing | (64-char hex string) |
-| `JWT_EXPIRY` | Token expiration | `5d` |
-| `FRONTEND_URL` | CORS allowed origin | `http://localhost:5173` |
-| `GATEWAY_PORT` | API Gateway port | `3000` |
-| `AUTH_SERVICE_PORT` | Auth service port | `3001` |
-| `PRODUCT_SERVICE_PORT` | Product service port | `3002` |
-| `TRACKING_SERVICE_PORT` | Tracking service port | `3003` |
-| `AUTH_SERVICE_URL` | Auth service URL | `http://localhost:3001` |
-| `PRODUCT_SERVICE_URL` | Product service URL | `http://localhost:3002` |
-| `TRACKING_SERVICE_URL` | Tracking service URL | `http://localhost:3003` |
-| `RATE_LIMIT_WINDOW_MS` | Rate limit window | `900000` (15 min) |
-| `RATE_LIMIT_MAX` | Max requests per window | `100` |
-| `OTP_EXPIRY_MINUTES` | OTP auto-delete time | `5` |
+We welcome contributions from the community to improve security modeling and interface design. 
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ---
 
-## Supply Chain Flow
+## 📫 Contact
 
-```
-Manufacturer                Distributor              Pharmacy              Consumer
-    │                           │                       │                     │
-    │  1. Register product      │                       │                     │
-    │  2. Generate signed QR    │                       │                     │
-    │  3. GPS captured          │                       │                     │
-    │──── Ship with QR ────────▶│                       │                     │
-    │                           │  4. Scan QR           │                     │
-    │                           │  5. Add tracking      │                     │
-    │                           │  6. GPS captured      │                     │
-    │                           │──── Ship ────────────▶│                     │
-    │                           │                       │  7. Scan QR         │
-    │                           │                       │  8. "Received at    │
-    │                           │                       │      Pharmacy"      │
-    │                           │                       │                     │
-    │                           │                       │◀── Customer visits ─│
-    │                           │                       │                     │
-    │                           │                       │    9. Scan QR code  │
-    │                           │                       │   10. View full     │
-    │                           │                       │       timeline      │
-    │                           │                       │   11. Product       │
-    │                           │                       │       locked to     │
-    │                           │                       │       consumer      │
-```
+Raman Kumar - [@RamanKumar](https://github.com/me-raman)
+
+Project Link: [https://github.com/me-raman/Project](https://github.com/me-raman/Project)
 
 ---
 
-*Built with ❤️ by Raman Kumar*
+## 📜 License
+
+Distributed under the MIT License. See `LICENSE` for more information.

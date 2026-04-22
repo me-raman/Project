@@ -3,6 +3,8 @@ import { ShieldCheck, Search, CheckCircle, AlertCircle, Package, Truck, Calendar
 import { Scanner } from './Scanner';
 import { DashboardShell } from './layout/DashboardShell';
 import { Button, Card, CardHeader, CardTitle, CardDescription, Input, Select, Textarea, Badge } from './ui';
+import { LocationPermissionModal } from './ui/LocationPermissionModal';
+import { useStrictLocation } from '../hooks/useStrictLocation';
 
 export const PharmacyDashboard = () => {
     const [query, setQuery] = useState('');
@@ -12,27 +14,15 @@ export const PharmacyDashboard = () => {
     const [error, setError] = useState(null);
     const [updateSuccess, setUpdateSuccess] = useState(false);
     const [recentActivity, setRecentActivity] = useState([]);
-    const [geoCoords, setGeoCoords] = useState(null);
     const [pendingHandoffs, setPendingHandoffs] = useState([]);
     const [handoffLoading, setHandoffLoading] = useState(null);
     const [disputeReason, setDisputeReason] = useState('');
     const [disputeProductId, setDisputeProductId] = useState(null);
+    const { requestLocation, locationModal } = useStrictLocation();
 
     useEffect(() => {
         fetchHistory();
         fetchPendingHandoffs();
-        // Request geolocation on mount
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    setGeoCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-                },
-                (err) => {
-                    console.log('Geolocation not available:', err.message);
-                },
-                { enableHighAccuracy: true, timeout: 10000 }
-            );
-        }
     }, []);
 
     const fetchHistory = async () => {
@@ -66,37 +56,29 @@ export const PharmacyDashboard = () => {
     };
 
     const handleConfirmHandoff = async (productId) => {
-        setHandoffLoading(productId);
-        try {
-            let latitude, longitude;
+        // Gate: require live GPS before confirming receipt
+        requestLocation(async ({ latitude, longitude }) => {
+            setHandoffLoading(productId);
             try {
-                const pos = await new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                const token = sessionStorage.getItem('token');
+                const res = await fetch(`/api/track/confirm/${encodeURIComponent(productId)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                    body: JSON.stringify({ notes: 'Confirmed receipt at pharmacy', latitude, longitude })
                 });
-                latitude = pos.coords.latitude;
-                longitude = pos.coords.longitude;
-            } catch (geoErr) {
-                if (geoCoords) { latitude = geoCoords.latitude; longitude = geoCoords.longitude; }
+                if (res.ok) {
+                    fetchPendingHandoffs();
+                    fetchHistory();
+                } else {
+                    const data = await res.json();
+                    setError(data.message);
+                }
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setHandoffLoading(null);
             }
-
-            const token = sessionStorage.getItem('token');
-            const res = await fetch(`/api/track/confirm/${encodeURIComponent(productId)}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-                body: JSON.stringify({ notes: 'Confirmed receipt at pharmacy', latitude, longitude })
-            });
-            if (res.ok) {
-                fetchPendingHandoffs();
-                fetchHistory();
-            } else {
-                const data = await res.json();
-                setError(data.message);
-            }
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setHandoffLoading(null);
-        }
+        });
     };
 
     const handleDisputeHandoff = async (productId) => {
@@ -132,53 +114,40 @@ export const PharmacyDashboard = () => {
 
     const handleUpdateSubmit = async () => {
         if (!updateStatus) return;
-        setLoading(true);
-        try {
-            // Capture geolocation
-            let latitude, longitude;
+
+        // Gate: require live GPS before updating tracking
+        requestLocation(async ({ latitude, longitude }) => {
+            setLoading(true);
             try {
-                const pos = await new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                const token = sessionStorage.getItem('token');
+                const res = await fetch(`/api/track/${verificationResult.product.productId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token
+                    },
+                    body: JSON.stringify({
+                        status: updateStatus,
+                        notes: updateNotes,
+                        latitude,
+                        longitude
+                    })
                 });
-                latitude = pos.coords.latitude;
-                longitude = pos.coords.longitude;
-                setGeoCoords({ latitude, longitude });
-            } catch (geoErr) {
-                console.log('Geolocation not available:', geoErr.message);
-                if (geoCoords) {
-                    latitude = geoCoords.latitude;
-                    longitude = geoCoords.longitude;
-                }
+
+                if (!res.ok) throw new Error('Failed to update status');
+
+                setVerificationResult(null);
+                setUpdateSuccess(true);
+                setShowUpdateForm(false);
+                setUpdateStatus('');
+                setUpdateNotes('');
+                fetchHistory();
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
             }
-
-            const token = sessionStorage.getItem('token');
-            const res = await fetch(`/api/track/${verificationResult.product.productId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-auth-token': token
-                },
-                body: JSON.stringify({
-                    status: updateStatus,
-                    notes: updateNotes,
-                    latitude,
-                    longitude
-                })
-            });
-
-            if (!res.ok) throw new Error('Failed to update status');
-
-            setVerificationResult(null);
-            setUpdateSuccess(true);
-            setShowUpdateForm(false);
-            setUpdateStatus('');
-            setUpdateNotes('');
-            fetchHistory();
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
+        });
     };
 
     const extractProductId = (rawValue) => {
@@ -242,6 +211,8 @@ export const PharmacyDashboard = () => {
     ];
 
     return (
+        <>
+        <LocationPermissionModal {...locationModal} />
         <DashboardShell
             title="Pharmacy Portal"
             description="Verify and manage pharmaceutical inventory"
@@ -319,22 +290,44 @@ export const PharmacyDashboard = () => {
                                     <Badge variant="info">Awaiting Receipt</Badge>
                                 </div>
 
-                                <div className="flex items-center gap-2 mt-3">
-                                    <Button
-                                        onClick={() => handleConfirmHandoff(handoff.productId)}
-                                        disabled={handoffLoading === handoff.productId}
-                                        className="bg-emerald-600 hover:bg-emerald-500"
-                                    >
-                                        {handoffLoading === handoff.productId ? 'Processing...' : 'Confirm Receipt'}
-                                    </Button>
-                                    <Button
-                                        variant="danger"
-                                        onClick={() => setDisputeProductId(handoff.productId)}
-                                        className="bg-red-900/40 hover:bg-red-900/60"
-                                    >
-                                        Dispute
-                                    </Button>
-                                </div>
+                                {disputeProductId === handoff.productId ? (
+                                    <div className="flex items-center gap-2 mt-3">
+                                        <input
+                                            type="text"
+                                            placeholder="Reason for dispute..."
+                                            className="flex-1 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-sm text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                                            value={disputeReason}
+                                            onChange={(e) => setDisputeReason(e.target.value)}
+                                        />
+                                        <Button
+                                            variant="danger"
+                                            onClick={() => handleDisputeHandoff(handoff.productId)}
+                                            disabled={handoffLoading === handoff.productId}
+                                        >
+                                            Submit Dispute
+                                        </Button>
+                                        <Button variant="secondary" onClick={() => { setDisputeProductId(null); setDisputeReason(''); }}>
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 mt-3">
+                                        <Button
+                                            onClick={() => handleConfirmHandoff(handoff.productId)}
+                                            disabled={handoffLoading === handoff.productId}
+                                            className="bg-emerald-600 hover:bg-emerald-500"
+                                        >
+                                            {handoffLoading === handoff.productId ? 'Processing...' : 'Confirm Receipt'}
+                                        </Button>
+                                        <Button
+                                            variant="danger"
+                                            onClick={() => setDisputeProductId(handoff.productId)}
+                                            className="bg-red-900/40 hover:bg-red-900/60"
+                                        >
+                                            Dispute
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -533,6 +526,7 @@ export const PharmacyDashboard = () => {
                 </div>
             )}
         </DashboardShell>
+        </>
     );
 };
 

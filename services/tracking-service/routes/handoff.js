@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const authorize = require('../middleware/authorize');
+const requireCoords = require('../middleware/requireCoords');
 const Product = require('../models/Product');
 const Tracking = require('../models/Tracking');
 const Handoff = require('../models/Handoff');
@@ -10,7 +11,7 @@ const { checkImpossibleTravel } = require('../utils/geoUtils');
 
 // @route   POST /api/track/ship/:productId
 // @desc    Sender initiates shipment (Step 1 of dual-confirmation)
-router.post('/ship/:productId', auth, authorize('Manufacturer', 'Distributor', 'Admin'), async (req, res) => {
+router.post('/ship/:productId', auth, authorize('Manufacturer', 'Distributor', 'Admin'), requireCoords(), async (req, res) => {
     const { productId } = req.params;
     const { receiverId, notes, latitude, longitude } = req.body;
 
@@ -129,7 +130,7 @@ router.post('/ship/:productId', auth, authorize('Manufacturer', 'Distributor', '
 
 // @route   POST /api/track/confirm/:productId
 // @desc    Receiver confirms receipt (Step 2 of dual-confirmation)
-router.post('/confirm/:productId', auth, authorize('Distributor', 'Pharmacy', 'Admin'), async (req, res) => {
+router.post('/confirm/:productId', auth, authorize('Distributor', 'Pharmacy', 'Admin'), requireCoords(), async (req, res) => {
     const { productId } = req.params;
     const { notes, latitude, longitude } = req.body;
 

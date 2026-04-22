@@ -3,6 +3,8 @@ import { ShieldCheck, Search, CheckCircle, AlertCircle, Package, Truck, Calendar
 import { Scanner } from './Scanner';
 import { DashboardShell } from './layout/DashboardShell';
 import { Button, Card, CardHeader, CardTitle, CardDescription, Input, Select, Textarea, Badge } from './ui';
+import { LocationPermissionModal } from './ui/LocationPermissionModal';
+import { useStrictLocation } from '../hooks/useStrictLocation';
 
 export const DistributorDashboard = () => {
     const [query, setQuery] = useState('');
@@ -12,27 +14,15 @@ export const DistributorDashboard = () => {
     const [error, setError] = useState(null);
     const [updateSuccess, setUpdateSuccess] = useState(false);
     const [recentActivity, setRecentActivity] = useState([]);
-    const [geoCoords, setGeoCoords] = useState(null);
     const [pendingHandoffs, setPendingHandoffs] = useState([]);
     const [handoffLoading, setHandoffLoading] = useState(null);
     const [disputeReason, setDisputeReason] = useState('');
     const [disputeProductId, setDisputeProductId] = useState(null);
+    const { requestLocation, locationModal } = useStrictLocation();
 
     useEffect(() => {
         fetchHistory();
         fetchPendingHandoffs();
-        // Request geolocation on mount
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    setGeoCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-                },
-                (err) => {
-                    console.log('Geolocation not available:', err.message);
-                },
-                { enableHighAccuracy: true, timeout: 10000 }
-            );
-        }
     }, []);
 
     const fetchHistory = async () => {
@@ -66,37 +56,29 @@ export const DistributorDashboard = () => {
     };
 
     const handleConfirmHandoff = async (productId) => {
-        setHandoffLoading(productId);
-        try {
-            let latitude, longitude;
+        // Gate: require live GPS before confirming receipt
+        requestLocation(async ({ latitude, longitude }) => {
+            setHandoffLoading(productId);
             try {
-                const pos = await new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                const token = sessionStorage.getItem('token');
+                const res = await fetch(`/api/track/confirm/${encodeURIComponent(productId)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                    body: JSON.stringify({ notes: 'Confirmed receipt', latitude, longitude })
                 });
-                latitude = pos.coords.latitude;
-                longitude = pos.coords.longitude;
-            } catch (geoErr) {
-                if (geoCoords) { latitude = geoCoords.latitude; longitude = geoCoords.longitude; }
+                if (res.ok) {
+                    fetchPendingHandoffs();
+                    fetchHistory();
+                } else {
+                    const data = await res.json();
+                    setError(data.message);
+                }
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setHandoffLoading(null);
             }
-
-            const token = sessionStorage.getItem('token');
-            const res = await fetch(`/api/track/confirm/${encodeURIComponent(productId)}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-                body: JSON.stringify({ notes: 'Confirmed receipt', latitude, longitude })
-            });
-            if (res.ok) {
-                fetchPendingHandoffs();
-                fetchHistory();
-            } else {
-                const data = await res.json();
-                setError(data.message);
-            }
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setHandoffLoading(null);
-        }
+        });
     };
 
     const handleDisputeHandoff = async (productId) => {
@@ -132,53 +114,39 @@ export const DistributorDashboard = () => {
 
     const handleUpdateSubmit = async () => {
         if (!updateStatus) return;
-        setLoading(true);
-        try {
-            // Capture geolocation
-            let latitude, longitude;
+
+        // Gate: require live GPS before updating tracking
+        requestLocation(async ({ latitude, longitude }) => {
+            setLoading(true);
             try {
-                const pos = await new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                const token = sessionStorage.getItem('token');
+                const res = await fetch(`/api/track/${verificationResult.product.productId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token
+                    },
+                    body: JSON.stringify({
+                        status: updateStatus,
+                        notes: updateNotes,
+                        latitude,
+                        longitude
+                    })
                 });
-                latitude = pos.coords.latitude;
-                longitude = pos.coords.longitude;
-                setGeoCoords({ latitude, longitude });
-            } catch (geoErr) {
-                console.log('Geolocation not available:', geoErr.message);
-                // Fall back to previously acquired coordinates
-                if (geoCoords) {
-                    latitude = geoCoords.latitude;
-                    longitude = geoCoords.longitude;
-                }
+
+                if (!res.ok) throw new Error('Failed to update status');
+
+                setVerificationResult(null);
+                setUpdateSuccess(true);
+                setShowUpdateForm(false);
+                setUpdateStatus('');
+                setUpdateNotes('');
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
             }
-
-            const token = sessionStorage.getItem('token');
-            const res = await fetch(`/api/track/${verificationResult.product.productId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-auth-token': token
-                },
-                body: JSON.stringify({
-                    status: updateStatus,
-                    notes: updateNotes,
-                    latitude,
-                    longitude
-                })
-            });
-
-            if (!res.ok) throw new Error('Failed to update status');
-
-            setVerificationResult(null);
-            setUpdateSuccess(true);
-            setShowUpdateForm(false);
-            setUpdateStatus('');
-            setUpdateNotes('');
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
+        });
     };
 
     // Extract plain productId from a potentially signed QR payload
@@ -251,6 +219,8 @@ export const DistributorDashboard = () => {
     ];
 
     return (
+        <>
+        <LocationPermissionModal {...locationModal} />
         <DashboardShell
             title="Verify products"
             description="Scan or search to verify incoming products"
@@ -594,5 +564,6 @@ export const DistributorDashboard = () => {
                 </div>
             )}
         </DashboardShell>
+        </>
     );
 };

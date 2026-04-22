@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const authorize = require('../middleware/authorize');
+const requireCoords = require('../middleware/requireCoords');
 const Product = require('../models/Product');
 const Tracking = require('../models/Tracking');
 const User = require('../models/User');
@@ -12,7 +13,7 @@ const { calculateDistance } = require('../utils/geoUtils');
 
 // @route   POST /api/product
 // @desc    Create a new product (Manufacturer only)
-router.post('/', auth, authorize('Manufacturer'), async (req, res) => {
+router.post('/', auth, authorize('Manufacturer'), requireCoords(), async (req, res) => {
     const { productId, name, batchNumber, serialNumber, mfgDate, expDate, latitude, longitude } = req.body;
 
     try {
@@ -167,7 +168,7 @@ router.get('/:id', async (req, res) => {
 
 // @route   POST /api/product/batch
 // @desc    Create multiple products (Batch Generation) - Manufacturer only
-router.post('/batch', auth, authorize('Manufacturer'), async (req, res) => {
+router.post('/batch', auth, authorize('Manufacturer'), requireCoords(), async (req, res) => {
     const { name, batchNumber, mfgDate, expDate, count, latitude, longitude } = req.body;
     const quantity = parseInt(count) || 1;
 

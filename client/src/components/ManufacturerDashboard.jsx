@@ -3,6 +3,8 @@ import QRCode from 'react-qr-code';
 import { Package, CheckCircle, AlertCircle, Printer, Plus, Send, Lock, Users } from 'lucide-react';
 import { DashboardShell } from './layout/DashboardShell';
 import { Button, Card, CardHeader, CardTitle, CardDescription, Input, Badge } from './ui';
+import { LocationPermissionModal } from './ui/LocationPermissionModal';
+import { useStrictLocation } from '../hooks/useStrictLocation';
 
 export const ManufacturerDashboard = () => {
     const [loading, setLoading] = useState(false);
@@ -17,27 +19,15 @@ export const ManufacturerDashboard = () => {
     });
     const [batchResults, setBatchResults] = useState([]);
     const [recentBatches, setRecentBatches] = useState([]);
-    const [geoCoords, setGeoCoords] = useState(null);
     const [batchMeta, setBatchMeta] = useState(null); // auditStatus, quantityLocked, declaredQuantity
     const [shipModal, setShipModal] = useState(null);
     const [shipLoading, setShipLoading] = useState(false);
     const [distributors, setDistributors] = useState([]);
     const [selectedReceiver, setSelectedReceiver] = useState('');
+    const { requestLocation, locationModal } = useStrictLocation();
 
     useEffect(() => {
         fetchRecentBatches();
-        // Request geolocation on mount
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    setGeoCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-                },
-                (err) => {
-                    console.log('Geolocation not available:', err.message);
-                },
-                { enableHighAccuracy: true, timeout: 10000 }
-            );
-        }
     }, []);
 
     const fetchRecentBatches = async () => {
@@ -78,57 +68,39 @@ export const ManufacturerDashboard = () => {
             return;
         }
 
-        setLoading(true);
-        setError('');
-        setSuccess(false);
+        // Gate: require live GPS before proceeding
+        requestLocation(async ({ latitude, longitude }) => {
+            setLoading(true);
+            setError('');
+            setSuccess(false);
 
-        try {
-            // Capture fresh geolocation at submit time
-            let latitude, longitude;
             try {
-                const pos = await new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, {
-                        enableHighAccuracy: true,
-                        timeout: 5000
-                    });
+                const token = sessionStorage.getItem('token');
+                const response = await fetch('/api/product/batch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-auth-token': token
+                    },
+                    body: JSON.stringify({ ...formData, latitude, longitude })
                 });
-                latitude = pos.coords.latitude;
-                longitude = pos.coords.longitude;
-                setGeoCoords({ latitude, longitude });
-            } catch (geoErr) {
-                console.log('Geolocation not available at submit:', geoErr.message);
-                // Fall back to previously acquired coordinates
-                if (geoCoords) {
-                    latitude = geoCoords.latitude;
-                    longitude = geoCoords.longitude;
-                }
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Failed to register batch');
+
+                setSuccess(true);
+                setBatchResults(data.products);
+                setBatchMeta({
+                    auditStatus: data.auditStatus,
+                    quantityLocked: data.quantityLocked,
+                    declaredQuantity: data.declaredQuantity
+                });
+                setLoading(false);
+            } catch (err) {
+                setError(err.message);
+                setLoading(false);
             }
-
-            const token = sessionStorage.getItem('token');
-            const response = await fetch('/api/product/batch', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-auth-token': token
-                },
-                body: JSON.stringify({ ...formData, latitude, longitude })
-            });
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || 'Failed to register batch');
-
-            setSuccess(true);
-            setBatchResults(data.products);
-            setBatchMeta({
-                auditStatus: data.auditStatus,
-                quantityLocked: data.quantityLocked,
-                declaredQuantity: data.declaredQuantity
-            });
-            setLoading(false);
-        } catch (err) {
-            setError(err.message);
-            setLoading(false);
-        }
+        });
     };
 
     const handlePrint = () => {
@@ -216,6 +188,7 @@ export const ManufacturerDashboard = () => {
 
     return (
         <>
+        <LocationPermissionModal {...locationModal} />
         <DashboardShell
             title="Create New Batch"
             description="Generate QR codes for your medicine batch"
@@ -518,40 +491,43 @@ export const ManufacturerDashboard = () => {
                         <Button
                             loading={shipLoading}
                             disabled={!selectedReceiver}
-                            onClick={async () => {
-                                setShipLoading(true);
-                                try {
-                                    const token = sessionStorage.getItem('token');
-                                    // Get products from the batch to ship
-                                    const prodRes = await fetch(`/api/product/batch/${encodeURIComponent(shipModal.batchNumber)}`, {
-                                        headers: { 'x-auth-token': token }
-                                    });
-                                    if (prodRes.ok) {
-                                        const products = await prodRes.json();
-                                        let shipped = 0, failed = 0;
-                                        for (const prod of products.slice(0, 10)) {
-                                            const shipRes = await fetch(`/api/track/ship/${encodeURIComponent(prod.productId)}`, {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-                                                body: JSON.stringify({
-                                                    receiverId: selectedReceiver,
-                                                    notes: `Shipped batch ${shipModal.batchNumber}`,
-                                                    latitude: geoCoords?.latitude,
-                                                    longitude: geoCoords?.longitude
-                                                })
-                                            });
-                                            if (shipRes.ok) shipped++; else failed++;
+                            onClick={() => {
+                                // Gate: require live GPS before shipping
+                                requestLocation(async ({ latitude, longitude }) => {
+                                    setShipLoading(true);
+                                    try {
+                                        const token = sessionStorage.getItem('token');
+                                        // Get products from the batch to ship
+                                        const prodRes = await fetch(`/api/product/batch/${encodeURIComponent(shipModal.batchNumber)}`, {
+                                            headers: { 'x-auth-token': token }
+                                        });
+                                        if (prodRes.ok) {
+                                            const products = await prodRes.json();
+                                            let shipped = 0, failed = 0;
+                                            for (const prod of products.slice(0, 10)) {
+                                                const shipRes = await fetch(`/api/track/ship/${encodeURIComponent(prod.productId)}`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                                                    body: JSON.stringify({
+                                                        receiverId: selectedReceiver,
+                                                        notes: `Shipped batch ${shipModal.batchNumber}`,
+                                                        latitude,
+                                                        longitude
+                                                    })
+                                                });
+                                                if (shipRes.ok) shipped++; else failed++;
+                                            }
+                                            if (failed > 0) setError(`${shipped} shipped, ${failed} failed`);
                                         }
-                                        if (failed > 0) setError(`${shipped} shipped, ${failed} failed`);
+                                        setShipModal(null);
+                                        setSelectedReceiver('');
+                                        fetchRecentBatches();
+                                    } catch (err) {
+                                        setError(err.message);
+                                    } finally {
+                                        setShipLoading(false);
                                     }
-                                    setShipModal(null);
-                                    setSelectedReceiver('');
-                                    fetchRecentBatches();
-                                } catch (err) {
-                                    setError(err.message);
-                                } finally {
-                                    setShipLoading(false);
-                                }
+                                });
                             }}
                         >
                             <Send className="h-4 w-4 mr-2" />
