@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, ArrowRight, Loader2, UserPlus, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { Button, Input } from './ui';
+import { ForgotPassword } from './ForgotPassword';
 
 export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
     const [formData, setFormData] = useState({
@@ -11,6 +12,7 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [flashSignUp, setFlashSignUp] = useState(false);
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -117,7 +119,7 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
                             <div className="space-y-1.5">
                                 <div className="flex justify-between items-center">
                                     <label className="text-sm font-medium text-zinc-300">Password</label>
-                                    <button type="button" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">Forgot password?</button>
+                                    <button type="button" onClick={() => setShowForgotPassword(true)} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">Forgot password?</button>
                                 </div>
                                 <div className="relative group">
                                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
@@ -173,6 +175,14 @@ export const Login = ({ onClose, onLoginSuccess, onSignUpClick }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Forgot Password Modal */}
+            {showForgotPassword && (
+                <ForgotPassword
+                    onClose={() => setShowForgotPassword(false)}
+                    onBackToLogin={() => setShowForgotPassword(false)}
+                />
+            )}
         </div>
     );
 };

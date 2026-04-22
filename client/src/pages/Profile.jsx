@@ -144,7 +144,7 @@ export const Profile = () => {
                         <InfoItem 
                             icon={Calendar} 
                             label="Member Since" 
-                            value={user.createdAt ? new Date(user.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'} 
+                            value={user.createdAt ? new Date(user.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long' }) : 'N/A'} 
                         />
                         <InfoItem 
                             icon={Shield} 

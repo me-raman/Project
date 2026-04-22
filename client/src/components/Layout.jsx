@@ -114,6 +114,7 @@ export const Navbar = ({ onLoginClick }) => {
                                             <User className="h-5 w-5" />
                                         </button>
                                     </div>
+                                    <span className="text-sm text-zinc-300 font-medium">{user.name}</span>
                                     <button
                                         onClick={handleLogout}
                                         className="text-sm text-zinc-400 hover:text-white transition-colors ml-1"
@@ -155,14 +156,15 @@ export const Navbar = ({ onLoginClick }) => {
                         <div className="p-4 space-y-2">
                             {user ? (
                                 <>
-                                <div className="flex items-center gap-2 p-1">
+                                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
                                     <button
                                         onClick={() => { window.location.href = '/profile'; setIsOpen(false); }}
-                                        className="flex-1 flex items-center justify-center p-3 rounded-xl bg-white/5 text-zinc-400 hover:text-white transition-colors"
+                                        className="p-2 text-zinc-400 hover:text-white transition-colors rounded-full"
                                         title="Profile"
                                     >
                                         <User className="h-5 w-5" />
                                     </button>
+                                    <span className="text-sm text-zinc-300 font-medium">{user.name}</span>
                                 </div>
                                     <button
                                         onClick={handleLogout}

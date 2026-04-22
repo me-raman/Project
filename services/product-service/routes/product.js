@@ -143,6 +143,19 @@ router.get('/admin/batch/:batchNumber', auth, authorize('Admin'), async (req, re
     }
 });
 
+// @route   GET /api/product/batch/:batchNumber
+// @desc    Get all products in a specific batch (Manufacturer/Distributor)
+router.get('/batch/:batchNumber', auth, async (req, res) => {
+    try {
+        const products = await Product.find({ batchNumber: req.params.batchNumber })
+            .sort({ createdAt: 1 });
+        res.json(products);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // @route   GET /api/product/:id
 // @desc    Get product by Product ID (Public)
 router.get('/:id', async (req, res) => {

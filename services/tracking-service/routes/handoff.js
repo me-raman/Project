@@ -335,4 +335,22 @@ router.get('/handoff-history/:productId', auth, async (req, res) => {
     }
 });
 
+// @route   GET /api/track/batch-receivers/:batchNumber
+// @desc    Get unique receivers who have already been shipped products from this batch
+router.get('/batch-receivers/:batchNumber', auth, async (req, res) => {
+    try {
+        const { batchNumber } = req.params;
+        // Search for handoffs where productId starts with PROD-batchNumber-
+        const handoffs = await Handoff.find({
+            productId: { $regex: new RegExp(`^PROD-${batchNumber}-`, 'i') }
+        }).select('receiver');
+
+        const receiverIds = [...new Set(handoffs.map(h => h.receiver?.toString()).filter(id => !!id))];
+        res.json(receiverIds);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;

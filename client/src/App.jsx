@@ -7,6 +7,7 @@ import { TermsOfService } from './pages/TermsOfService';
 import { Compliance } from './pages/Compliance';
 import { Profile } from './pages/Profile';
 import { ChangePassword } from './pages/ChangePassword';
+import { ResetPassword } from './pages/ResetPassword';
 
 function App() {
   const [view, setView] = useState(() => {
@@ -16,6 +17,7 @@ function App() {
     if (path === '/compliance') return 'compliance';
     if (path === '/profile') return 'profile';
     if (path === '/change-password') return 'change-password';
+    if (path === '/reset-password') return 'reset-password';
     return 'home';
   });
   const [productData, setProductData] = useState(null);
@@ -142,6 +144,7 @@ function App() {
         {view === 'compliance' && <Compliance />}
         {view === 'profile' && <Profile />}
         {view === 'change-password' && <ChangePassword />}
+        {view === 'reset-password' && <ResetPassword />}
 
         {view === 'details' && productData && (
           <ProductDetails
