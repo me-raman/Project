@@ -1,8 +1,13 @@
 import React from 'react';
+import { ArrowLeft } from 'lucide-react';
 
 export const Compliance = () => {
     return (
         <div className="pt-32 pb-24 px-6 max-w-[800px] mx-auto min-h-screen">
+            <a href="/" className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors mb-8 group">
+                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                Back to Home
+            </a>
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-12 tracking-tight">Compliance & Security</h1>
             
             <div className="space-y-8 text-zinc-400 leading-relaxed text-lg">

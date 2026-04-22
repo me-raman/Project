@@ -21,6 +21,9 @@ const UserSchema = new mongoose.Schema({
     registeredLatitude: { type: Number },
     registeredLongitude: { type: Number },
     registeredAddress: { type: String },
+    // Password Reset
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date },
     // Reputation Scoring
     reputationScore: { type: Number, default: 100, min: 0, max: 100 },
     reputationHistory: [{
@@ -33,6 +36,6 @@ const UserSchema = new mongoose.Schema({
     totalDisputes: { type: Number, default: 0 },
     totalHandoffs: { type: Number, default: 0 },
     lastReputationUpdate: { type: Date }
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);

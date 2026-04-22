@@ -1,9 +1,0 @@
-[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
-MongoDB Connected
-Server running on port 3000
-
-================================
-[SMS SIMULATION] To: 7061980905
-[SMS SIMULATION] OTP: 632638
-================================
-

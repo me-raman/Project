@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Shield, Globe, Zap, ScanLine, AlertCircle, Truck, Sparkles, Building2, UserCheck, Activity, ArrowRight, CheckCircle2, QrCode } from 'lucide-react';
+import { Search, Shield, Globe, Zap, ScanLine, AlertCircle, Truck, Sparkles, Building2, UserCheck, Activity, ArrowRight, CheckCircle2, QrCode, Clock, LogOut } from 'lucide-react';
 import { ManufacturerDashboard } from '../components/ManufacturerDashboard';
 import { DistributorDashboard } from '../components/DistributorDashboard';
 import { PharmacyDashboard } from '../components/PharmacyDashboard';
@@ -31,6 +31,56 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
     };
 
     const userRole = sessionStorage.getItem('userRole');
+    const licenceStatus = sessionStorage.getItem('licenceStatus');
+    const userName = sessionStorage.getItem('userName');
+
+    // Block pending users from accessing any dashboard
+    const gatedRoles = ['manufacturer', 'distributor', 'pharmacy'];
+    if (userRole && gatedRoles.includes(userRole.toLowerCase()) && licenceStatus?.toLowerCase() === 'pending') {
+        return (
+            <div className="min-h-screen bg-[#060608] relative overflow-hidden flex items-center justify-center px-4">
+                <div className="absolute inset-0 bg-mesh opacity-30 pointer-events-none"></div>
+                <div className="absolute inset-0 bg-noise pointer-events-none opacity-[0.03]"></div>
+
+                <div className="relative z-10 w-full max-w-lg text-center">
+                    <div className="glass-accent rounded-3xl border border-white/10 p-10 relative overflow-hidden">
+                        {/* Decorative gradients */}
+                        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50"></div>
+                        <div className="absolute -top-32 -left-32 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl"></div>
+                        <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl"></div>
+
+                        <div className="relative z-10">
+                            {/* Icon */}
+                            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-6">
+                                <Clock className="h-8 w-8 text-amber-400" />
+                            </div>
+
+                            {/* Role Badge + Name */}
+                            <Badge className="bg-white/5 text-zinc-300 border border-white/10 px-3 py-1 uppercase tracking-widest text-[10px] font-bold mb-4 inline-flex">
+                                {userRole}
+                            </Badge>
+                            {userName && (
+                                <p className="text-zinc-400 text-sm mb-6">{userName}</p>
+                            )}
+
+                            {/* Title */}
+                            <h1 className="text-3xl font-bold text-white tracking-tight mb-4">
+                                Account Pending Verification
+                            </h1>
+
+                            {/* Message */}
+                            <p className="text-zinc-400 leading-relaxed mb-8">
+                                Your account is currently under review. You will be able to access the platform once our team verifies your credentials. For assistance, contact{' '}
+                                <a href="mailto:support@pharmatrace.com" className="text-blue-400 hover:text-blue-300 transition-colors">
+                                    support@pharmatrace.com
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     // Role-based dashboard routing
     if (userRole?.toLowerCase() === 'admin') {
@@ -241,7 +291,7 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-1 rounded-3xl glass border-white/5 overflow-hidden">
                       <div className="p-6 text-center hover:bg-white/5 transition-colors border-r border-white/5">
                           <p className="text-3xl font-bold text-white mb-1">500K+</p>
-                          <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">Verified</p>
+                          <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">Batches Verified</p>
                       </div>
                       <div className="p-6 text-center hover:bg-white/5 transition-colors border-r border-white/5">
                           <p className="text-3xl font-bold text-white mb-1">99.9%</p>
@@ -249,11 +299,11 @@ export const Home = ({ onSearch, error, onOpenLogin }) => {
                       </div>
                       <div className="p-6 text-center hover:bg-white/5 transition-colors md:border-r border-white/5">
                           <p className="text-3xl font-bold text-white mb-1">20min</p>
-                          <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">Batch Time</p>
+                          <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">Avg. Verification Time</p>
                       </div>
                       <div className="p-6 text-center hover:bg-white/5 transition-colors">
-                          <p className="text-3xl font-bold text-white mb-1">Global</p>
-                          <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">Footprint</p>
+                          <p className="text-3xl font-bold text-white mb-1">150+</p>
+                          <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">Countries</p>
                       </div>
                   </div>
                 </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
-import { Package, CheckCircle, AlertCircle, Printer, Plus, Send, Lock, Users } from 'lucide-react';
+import { Package, CheckCircle, AlertCircle, Printer, Plus, Send, Lock, Users, ArrowLeft, Search } from 'lucide-react';
 import { DashboardShell } from './layout/DashboardShell';
 import { Button, Card, CardHeader, CardTitle, CardDescription, Input, Badge } from './ui';
 import { LocationPermissionModal } from './ui/LocationPermissionModal';
@@ -22,7 +22,10 @@ export const ManufacturerDashboard = () => {
     const [batchMeta, setBatchMeta] = useState(null); // auditStatus, quantityLocked, declaredQuantity
     const [shipModal, setShipModal] = useState(null);
     const [shipLoading, setShipLoading] = useState(false);
-    const [distributors, setDistributors] = useState([]);
+    const [receivers, setReceivers] = useState([]);
+    const [receiverRole, setReceiverRole] = useState('Distributor');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [shippedToIds, setShippedToIds] = useState([]);
     const [selectedReceiver, setSelectedReceiver] = useState('');
     const { requestLocation, locationModal } = useStrictLocation();
 
@@ -44,7 +47,35 @@ export const ManufacturerDashboard = () => {
             console.error('Failed to fetch recent batches:', err);
         }
     };
+    const fetchReceivers = async (role) => {
+        try {
+            const token = sessionStorage.getItem('token');
+            const res = await fetch(`/api/auth/users-by-role/${role}`, {
+                headers: { 'x-auth-token': token }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setReceivers(data);
+            }
+        } catch (err) {
+            console.error(`Failed to fetch ${role}s:`, err);
+        }
+    };
 
+    const fetchShippedTo = async (batchNumber) => {
+        try {
+            const token = sessionStorage.getItem('token');
+            const res = await fetch(`/api/track/batch-receivers/${encodeURIComponent(batchNumber)}`, {
+                headers: { 'x-auth-token': token }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setShippedToIds(data);
+            }
+        } catch (err) {
+            console.error('Failed to fetch shipped to receivers:', err);
+        }
+    };
     const handleChange = (e) => {
         const { name, value } = e.target;
         const updated = { ...formData, [name]: value };
@@ -96,6 +127,7 @@ export const ManufacturerDashboard = () => {
                     declaredQuantity: data.declaredQuantity
                 });
                 setLoading(false);
+                fetchRecentBatches();
             } catch (err) {
                 setError(err.message);
                 setLoading(false);
@@ -195,6 +227,13 @@ export const ManufacturerDashboard = () => {
             icon={Package}
             actions={batchResults.length > 0 && (
                 <div className="flex gap-2">
+                    <button
+                        onClick={resetForm}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-zinc-400 hover:text-white border border-white/10 hover:border-white/20 rounded-lg transition-all group"
+                    >
+                        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+                        Back to Dashboard
+                    </button>
                     <Button variant="secondary" onClick={resetForm}>
                         <Plus className="h-4 w-4 mr-2" />
                         New batch
@@ -353,6 +392,7 @@ export const ManufacturerDashboard = () => {
                                 type="date"
                                 value={formData.mfgDate}
                                 onChange={handleChange}
+                                min={new Date().toISOString().split('T')[0]}
                                 required
                             />
                             <Input
@@ -369,17 +409,21 @@ export const ManufacturerDashboard = () => {
                         <Input
                             label="Quantity"
                             name="count"
-                            type="number"
-                            min="1"
-                            max="1000"
+                            type="text"
+                            inputMode="numeric"
                             placeholder="Number of units to generate"
-                            value={formData.count}
-                            onChange={handleChange}
+                            value={formData.count ? parseInt(formData.count).toLocaleString() : ''}
+                            onChange={(e) => {
+                                const raw = e.target.value.replace(/[^0-9]/g, '');
+                                if (!raw) {
+                                    handleChange({ target: { name: 'count', value: '' } });
+                                    return;
+                                }
+                                const num = Math.min(parseInt(raw, 10), 1000000);
+                                handleChange({ target: { name: 'count', value: String(num) } });
+                            }}
                             required
                         />
-                        <p className="text-xs text-zinc-500 -mt-3">
-                            Maximum 1000 units per batch
-                        </p>
 
 
                         <div className="flex justify-end pt-2">
@@ -407,20 +451,17 @@ export const ManufacturerDashboard = () => {
                                                 <Button
                                                     variant="secondary"
                                                     onClick={async () => {
-                                                        // Fetch distributors for the receiver picker
-                                                        try {
-                                                            const token = sessionStorage.getItem('token');
-                                                            const res = await fetch('/api/auth/users-by-role/Distributor', {
-                                                                headers: { 'x-auth-token': token }
-                                                            });
-                                                            if (res.ok) {
-                                                                const data = await res.json();
-                                                                setDistributors(data);
-                                                            }
-                                                        } catch (err) {
-                                                            console.error('Failed to fetch distributors:', err);
-                                                        }
+                                                        const role = 'Distributor';
+                                                        setReceiverRole(role);
+                                                        setSearchQuery('');
+                                                        setSelectedReceiver('');
                                                         setShipModal(batch);
+                                                        
+                                                        // Fetch data for the modal
+                                                        await Promise.all([
+                                                            fetchReceivers(role),
+                                                            fetchShippedTo(batch.batchNumber)
+                                                        ]);
                                                     }}
                                                 >
                                                     <Send className="h-3 w-3 mr-1" />
@@ -462,28 +503,84 @@ export const ManufacturerDashboard = () => {
                         Select the distributor you are shipping to. They must confirm receipt before the product status updates.
                     </p>
 
-                    {/* Receiver Selector */}
+                    {/* Ship To Role Toggle */}
                     <div className="mb-4">
+                        <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">
+                            Ship To
+                        </label>
+                        <div className="flex p-1 bg-zinc-900 rounded-xl border border-white/5">
+                            {['Distributor', 'Pharmacy'].map((role) => (
+                                <button
+                                    key={role}
+                                    type="button"
+                                    onClick={() => {
+                                        setReceiverRole(role);
+                                        setSelectedReceiver('');
+                                        fetchReceivers(role);
+                                    }}
+                                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                                        receiverRole === role 
+                                            ? 'bg-blue-500 text-white shadow-lg' 
+                                            : 'text-zinc-500 hover:text-zinc-300'
+                                    }`}
+                                >
+                                    {role}s
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Receiver Selector with Search */}
+                    <div className="mb-6">
                         <label className="block text-sm font-medium text-zinc-300 mb-2">
                             <Users className="h-4 w-4 inline mr-1" />
-                            Ship to (Distributor) *
+                            Select {receiverRole} *
                         </label>
-                        {distributors.length === 0 ? (
-                            <p className="text-sm text-zinc-500 italic">Loading distributors...</p>
-                        ) : (
-                            <select
-                                className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                value={selectedReceiver}
-                                onChange={(e) => setSelectedReceiver(e.target.value)}
-                            >
-                                <option value="">-- Select a distributor --</option>
-                                {distributors.map((d) => (
-                                    <option key={d._id} value={d._id}>
-                                        {d.companyName} ({d.location})
-                                    </option>
-                                ))}
-                            </select>
-                        )}
+                        
+                        <div className="space-y-3">
+                            {/* Search Input */}
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                                <input
+                                    type="text"
+                                    placeholder={`Search ${receiverRole.toLowerCase()} by name or location...`}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                                />
+                            </div>
+
+                            {receivers.length === 0 ? (
+                                <p className="text-sm text-zinc-500 italic py-2">Loading receivers...</p>
+                            ) : (
+                                <select
+                                    className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-white/10 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all appearance-none cursor-pointer"
+                                    value={selectedReceiver}
+                                    onChange={(e) => setSelectedReceiver(e.target.value)}
+                                >
+                                    <option value="">-- Choose a recipient --</option>
+                                    {receivers
+                                        .filter(d => !shippedToIds.includes(d._id))
+                                        .filter(d => {
+                                            const search = searchQuery.toLowerCase();
+                                            return d.companyName.toLowerCase().includes(search) || 
+                                                   d.location.toLowerCase().includes(search);
+                                        })
+                                        .map((d) => (
+                                            <option key={d._id} value={d._id}>
+                                                {d.companyName} ({d.location})
+                                            </option>
+                                        ))
+                                    }
+                                </select>
+                            )}
+                            
+                            {receivers.filter(d => !shippedToIds.includes(d._id)).length === 0 && receivers.length > 0 && (
+                                <p className="text-xs text-amber-500/80 bg-amber-500/5 border border-amber-500/10 p-3 rounded-lg leading-relaxed">
+                                    All available {receiverRole.toLowerCase()}s for this batch have already been shipped to.
+                                </p>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex justify-end gap-2">
