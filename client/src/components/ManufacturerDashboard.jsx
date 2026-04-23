@@ -25,7 +25,7 @@ export const ManufacturerDashboard = () => {
     const [receivers, setReceivers] = useState([]);
     const [receiverRole, setReceiverRole] = useState('Distributor');
     const [searchQuery, setSearchQuery] = useState('');
-    const [shippedToIds, setShippedToIds] = useState([]);
+
     const [selectedReceiver, setSelectedReceiver] = useState('');
     const { requestLocation, locationModal } = useStrictLocation();
 
@@ -62,20 +62,7 @@ export const ManufacturerDashboard = () => {
         }
     };
 
-    const fetchShippedTo = async (batchNumber) => {
-        try {
-            const token = sessionStorage.getItem('token');
-            const res = await fetch(`/api/track/batch-receivers/${encodeURIComponent(batchNumber)}`, {
-                headers: { 'x-auth-token': token }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setShippedToIds(data);
-            }
-        } catch (err) {
-            console.error('Failed to fetch shipped to receivers:', err);
-        }
-    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         const updated = { ...formData, [name]: value };
@@ -456,12 +443,7 @@ export const ManufacturerDashboard = () => {
                                                         setSearchQuery('');
                                                         setSelectedReceiver('');
                                                         setShipModal(batch);
-                                                        
-                                                        // Fetch data for the modal
-                                                        await Promise.all([
-                                                            fetchReceivers(role),
-                                                            fetchShippedTo(batch.batchNumber)
-                                                        ]);
+                                                        await fetchReceivers(role);
                                                     }}
                                                 >
                                                     <Send className="h-3 w-3 mr-1" />
@@ -469,7 +451,11 @@ export const ManufacturerDashboard = () => {
                                                 </Button>
                                             )}
                                             <div className="text-right">
-                                                <Badge variant={batch.currentStatus === 'Manufactured' ? 'info' : 'success'}>
+                                                <Badge variant={
+                                                    batch.currentStatus === 'Manufactured' ? 'info' : 
+                                                    batch.currentStatus === 'Pending Confirmation' ? 'warning' :
+                                                    'success'
+                                                }>
                                                     {batch.currentStatus || 'Manufactured'}
                                                 </Badge>
                                                 <p className="text-xs text-zinc-500 mt-1">
@@ -500,7 +486,7 @@ export const ManufacturerDashboard = () => {
                         </div>
                     </div>
                     <p className="text-sm text-zinc-400 mb-4">
-                        Select the distributor you are shipping to. They must confirm receipt before the product status updates.
+                        Select the recipient you are shipping to. They must confirm receipt before the product status updates.
                     </p>
 
                     {/* Ship To Role Toggle */}
@@ -524,7 +510,7 @@ export const ManufacturerDashboard = () => {
                                             : 'text-zinc-500 hover:text-zinc-300'
                                     }`}
                                 >
-                                    {role}s
+                                    {role === 'Pharmacy' ? 'Pharmacies' : `${role}s`}
                                 </button>
                             ))}
                         </div>
@@ -545,41 +531,71 @@ export const ManufacturerDashboard = () => {
                                     type="text"
                                     placeholder={`Search ${receiverRole.toLowerCase()} by name or location...`}
                                     value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                        // Clear selection when search changes so user picks from filtered list
+                                        if (e.target.value !== searchQuery) {
+                                            setSelectedReceiver('');
+                                        }
+                                    }}
                                     className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
                                 />
                             </div>
 
                             {receivers.length === 0 ? (
                                 <p className="text-sm text-zinc-500 italic py-2">Loading receivers...</p>
-                            ) : (
-                                <select
-                                    className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-white/10 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all appearance-none cursor-pointer"
-                                    value={selectedReceiver}
-                                    onChange={(e) => setSelectedReceiver(e.target.value)}
-                                >
-                                    <option value="">-- Choose a recipient --</option>
-                                    {receivers
-                                        .filter(d => !shippedToIds.includes(d._id))
-                                        .filter(d => {
-                                            const search = searchQuery.toLowerCase();
-                                            return d.companyName.toLowerCase().includes(search) || 
-                                                   d.location.toLowerCase().includes(search);
-                                        })
-                                        .map((d) => (
-                                            <option key={d._id} value={d._id}>
-                                                {d.companyName} ({d.location})
-                                            </option>
-                                        ))
-                                    }
-                                </select>
-                            )}
-                            
-                            {receivers.filter(d => !shippedToIds.includes(d._id)).length === 0 && receivers.length > 0 && (
-                                <p className="text-xs text-amber-500/80 bg-amber-500/5 border border-amber-500/10 p-3 rounded-lg leading-relaxed">
-                                    All available {receiverRole.toLowerCase()}s for this batch have already been shipped to.
-                                </p>
-                            )}
+                            ) : (() => {
+                                const filtered = receivers.filter(d => {
+                                    if (!searchQuery.trim()) return true;
+                                    const search = searchQuery.toLowerCase();
+                                    return d.companyName.toLowerCase().includes(search) || 
+                                           d.location.toLowerCase().includes(search);
+                                });
+
+                                if (filtered.length === 0) {
+                                    return (
+                                        <div className="py-4 text-center rounded-xl bg-zinc-900/50 border border-white/5">
+                                            <p className="text-sm text-zinc-500">No {receiverRole.toLowerCase()}s found matching "<span className="text-zinc-300">{searchQuery}</span>"</p>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div className="max-h-48 overflow-y-auto rounded-xl border border-white/5 bg-zinc-900/50 divide-y divide-white/5 custom-scrollbar">
+                                        {filtered.map((d) => (
+                                            <button
+                                                key={d._id}
+                                                type="button"
+                                                onClick={() => setSelectedReceiver(d._id)}
+                                                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all hover:bg-white/5 ${
+                                                    selectedReceiver === d._id 
+                                                        ? 'bg-blue-500/10 border-l-2 border-l-blue-500' 
+                                                        : 'border-l-2 border-l-transparent'
+                                                }`}
+                                            >
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                                                    selectedReceiver === d._id 
+                                                        ? 'bg-blue-500 text-white' 
+                                                        : 'bg-zinc-800 text-zinc-400'
+                                                }`}>
+                                                    {d.companyName.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className={`text-sm font-medium truncate ${
+                                                        selectedReceiver === d._id ? 'text-blue-300' : 'text-zinc-200'
+                                                    }`}>
+                                                        {d.companyName}
+                                                    </p>
+                                                    <p className="text-xs text-zinc-500 truncate">{d.location}</p>
+                                                </div>
+                                                {selectedReceiver === d._id && (
+                                                    <CheckCircle className="h-4 w-4 text-blue-400 ml-auto shrink-0" />
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
 
@@ -594,28 +610,19 @@ export const ManufacturerDashboard = () => {
                                     setShipLoading(true);
                                     try {
                                         const token = sessionStorage.getItem('token');
-                                        // Get products from the batch to ship
-                                        const prodRes = await fetch(`/api/product/batch/${encodeURIComponent(shipModal.batchNumber)}`, {
-                                            headers: { 'x-auth-token': token }
+                                        const res = await fetch('/api/track/ship-batch', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                                            body: JSON.stringify({
+                                                batchNumber: shipModal.batchNumber,
+                                                receiverId: selectedReceiver,
+                                                notes: `Shipped batch ${shipModal.batchNumber}`,
+                                                latitude,
+                                                longitude
+                                            })
                                         });
-                                        if (prodRes.ok) {
-                                            const products = await prodRes.json();
-                                            let shipped = 0, failed = 0;
-                                            for (const prod of products.slice(0, 10)) {
-                                                const shipRes = await fetch(`/api/track/ship/${encodeURIComponent(prod.productId)}`, {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-                                                    body: JSON.stringify({
-                                                        receiverId: selectedReceiver,
-                                                        notes: `Shipped batch ${shipModal.batchNumber}`,
-                                                        latitude,
-                                                        longitude
-                                                    })
-                                                });
-                                                if (shipRes.ok) shipped++; else failed++;
-                                            }
-                                            if (failed > 0) setError(`${shipped} shipped, ${failed} failed`);
-                                        }
+                                        const data = await res.json();
+                                        if (!res.ok) throw new Error(data.message || 'Failed to ship batch');
                                         setShipModal(null);
                                         setSelectedReceiver('');
                                         fetchRecentBatches();

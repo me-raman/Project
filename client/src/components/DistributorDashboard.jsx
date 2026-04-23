@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Search, CheckCircle, AlertCircle, Package, Truck, Calendar, Clock, Inbox, ThumbsUp, ThumbsDown, Send } from 'lucide-react';
+import { ShieldCheck, Search, CheckCircle, AlertCircle, Package, Truck, Calendar, Clock, Inbox, ThumbsUp, ThumbsDown, Send, QrCode, Users } from 'lucide-react';
 import { Scanner } from './Scanner';
 import { DashboardShell } from './layout/DashboardShell';
 import { Button, Card, CardHeader, CardTitle, CardDescription, Input, Select, Textarea, Badge } from './ui';
@@ -8,7 +8,6 @@ import { useStrictLocation } from '../hooks/useStrictLocation';
 
 export const DistributorDashboard = () => {
     const [query, setQuery] = useState('');
-    const [showScanner, setShowScanner] = useState(false);
     const [loading, setLoading] = useState(false);
     const [verificationResult, setVerificationResult] = useState(null);
     const [error, setError] = useState(null);
@@ -18,17 +17,29 @@ export const DistributorDashboard = () => {
     const [handoffLoading, setHandoffLoading] = useState(null);
     const [disputeReason, setDisputeReason] = useState('');
     const [disputeProductId, setDisputeProductId] = useState(null);
+    const [scannedBatches, setScannedBatches] = useState([]);
+    const [showHandoffScanner, setShowHandoffScanner] = useState(false);
+    const [scanError, setScanError] = useState(null);
+    // Inventory & forward-ship state
+    const [inventory, setInventory] = useState([]);
+    const [shipModal, setShipModal] = useState(null);
+    const [shipLoading, setShipLoading] = useState(false);
+    const [receivers, setReceivers] = useState([]);
+    const [receiverRole, setReceiverRole] = useState('Pharmacy');
+    const [selectedReceiver, setSelectedReceiver] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
     const { requestLocation, locationModal } = useStrictLocation();
 
     useEffect(() => {
         fetchHistory();
         fetchPendingHandoffs();
+        fetchInventory();
     }, []);
 
     const fetchHistory = async () => {
         try {
             const token = sessionStorage.getItem('token');
-            const response = await fetch('/api/track/user/history', {
+            const response = await fetch('/api/track/my-activity', {
                 headers: { 'x-auth-token': token }
             });
             if (response.ok) {
@@ -36,7 +47,7 @@ export const DistributorDashboard = () => {
                 setRecentActivity(data);
             }
         } catch (err) {
-            console.error('Failed to fetch history:', err);
+            console.error('Failed to fetch activity:', err);
         }
     };
 
@@ -55,13 +66,44 @@ export const DistributorDashboard = () => {
         }
     };
 
-    const handleConfirmHandoff = async (productId) => {
+    const fetchInventory = async () => {
+        try {
+            const token = sessionStorage.getItem('token');
+            const res = await fetch('/api/track/my-inventory', {
+                headers: { 'x-auth-token': token }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setInventory(data.inventory || []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch inventory:', err);
+        }
+    };
+
+    const fetchReceivers = async (role) => {
+        try {
+            const token = sessionStorage.getItem('token');
+            const res = await fetch(`/api/auth/users-by-role/${role}`, {
+                headers: { 'x-auth-token': token }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const currentUserId = sessionStorage.getItem('userId');
+                setReceivers(data.filter(d => d._id !== currentUserId));
+            }
+        } catch (err) {
+            console.error(`Failed to fetch ${role}s:`, err);
+        }
+    };
+
+    const handleConfirmHandoff = async (batchNumber) => {
         // Gate: require live GPS before confirming receipt
         requestLocation(async ({ latitude, longitude }) => {
-            setHandoffLoading(productId);
+            setHandoffLoading(batchNumber);
             try {
                 const token = sessionStorage.getItem('token');
-                const res = await fetch(`/api/track/confirm/${encodeURIComponent(productId)}`, {
+                const res = await fetch(`/api/track/confirm-batch/${encodeURIComponent(batchNumber)}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
                     body: JSON.stringify({ notes: 'Confirmed receipt', latitude, longitude })
@@ -69,6 +111,7 @@ export const DistributorDashboard = () => {
                 if (res.ok) {
                     fetchPendingHandoffs();
                     fetchHistory();
+                    fetchInventory();
                 } else {
                     const data = await res.json();
                     setError(data.message);
@@ -81,12 +124,12 @@ export const DistributorDashboard = () => {
         });
     };
 
-    const handleDisputeHandoff = async (productId) => {
+    const handleDisputeHandoff = async (batchNumber) => {
         if (!disputeReason) { setError('Please enter a dispute reason'); return; }
-        setHandoffLoading(productId);
+        setHandoffLoading(batchNumber);
         try {
             const token = sessionStorage.getItem('token');
-            const res = await fetch(`/api/track/dispute/${encodeURIComponent(productId)}`, {
+            const res = await fetch(`/api/track/dispute-batch/${encodeURIComponent(batchNumber)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
                 body: JSON.stringify({ reason: disputeReason })
@@ -208,9 +251,40 @@ export const DistributorDashboard = () => {
         if (query.trim()) executeSearch(query);
     };
 
-    const handleScan = (decodedText) => {
-        setShowScanner(false);
-        executeSearch(decodedText);
+    const handleHandoffScan = async (decodedText) => {
+        setShowHandoffScanner(false);
+        setScanError(null);
+
+        try {
+            // Strip QR signature if present
+            const productId = extractProductId(decodedText);
+
+            // Look up the product to get its batchNumber
+            const response = await fetch(`/api/product/${encodeURIComponent(productId)}`);
+            const data = await response.json();
+
+            if (!response.ok) throw new Error(data.message || 'Product not found');
+
+            const scannedBatch = data.product?.batchNumber;
+            if (!scannedBatch) throw new Error('Could not determine batch number from scanned QR code');
+
+            // Check if this batch matches any pending handoff
+            const match = pendingHandoffs.find(h => {
+                const handoffBatch = h.batchNumber || h.product?.batchNumber;
+                return handoffBatch === scannedBatch;
+            });
+
+            if (match) {
+                const batchKey = match.batchNumber || match.product?.batchNumber;
+                if (!scannedBatches.includes(batchKey)) {
+                    setScannedBatches(prev => [...prev, batchKey]);
+                }
+            } else {
+                setScanError('This batch is not assigned to you');
+            }
+        } catch (err) {
+            setScanError(err.message || 'Failed to verify scanned QR code');
+        }
     };
 
     const statusOptions = [
@@ -227,7 +301,7 @@ export const DistributorDashboard = () => {
             icon={ShieldCheck}
         >
             {/* Welcome Stats Card */}
-            <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-down delay-100">
+            <div className="mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 animate-slide-down delay-100">
                 <Card className="col-span-1 md:col-span-2 !bg-gradient-to-br !from-purple-900/40 !to-indigo-900/40 border-purple-500/20 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
                     <div className="relative z-10 p-2">
@@ -247,6 +321,17 @@ export const DistributorDashboard = () => {
                         <p className="text-zinc-400 text-sm">Pending Handoffs</p>
                     </div>
                 </Card>
+                <Card className="!bg-gradient-to-br !from-emerald-900/30 !to-green-900/30 border-emerald-500/20 relative overflow-hidden flex items-center justify-center text-center">
+                    <div className="relative z-10 p-2">
+                        <div className="mx-auto w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mb-3">
+                            <Package className="h-6 w-6 text-emerald-400" />
+                        </div>
+                        <h3 className="text-3xl font-bold text-white mb-1">
+                            {inventory.length}
+                        </h3>
+                        <p className="text-zinc-400 text-sm">In Inventory</p>
+                    </div>
+                </Card>
             </div>
 
             {/* Search */}
@@ -262,9 +347,6 @@ export const DistributorDashboard = () => {
                             onChange={(e) => setQuery(e.target.value)}
                         />
                     </div>
-                    <Button type="button" variant="secondary" onClick={() => setShowScanner(true)}>
-                        Scan QR
-                    </Button>
                     <Button type="submit" loading={loading}>
                         Verify
                     </Button>
@@ -285,26 +367,44 @@ export const DistributorDashboard = () => {
                         <CardDescription>Shipments awaiting your confirmation</CardDescription>
                     </CardHeader>
                     <div className="space-y-3">
-                        {pendingHandoffs.map((handoff) => (
-                            <div key={handoff._id} className="p-4 rounded-xl border border-blue-500/20 bg-blue-900/10">
+                        {pendingHandoffs.map((handoff) => {
+                            const batchKey = handoff.batchNumber || handoff.product?.batchNumber;
+                            const isScanned = scannedBatches.includes(batchKey);
+
+                            return (
+                            <div key={handoff._id} className={`p-4 rounded-xl border ${isScanned ? 'border-emerald-500/30 bg-emerald-900/10' : 'border-blue-500/20 bg-blue-900/10'}`}>
                                 <div className="flex items-start justify-between mb-2">
                                     <div>
-                                        <p className="font-medium text-zinc-100">
-                                            {handoff.product?.name || 'Product'}
+                                        <p className="font-medium text-zinc-100 flex items-center gap-2">
+                                            {handoff.batchName || handoff.product?.name || 'Product'}
+                                            {isScanned && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold uppercase tracking-wider">
+                                                    <CheckCircle className="h-3 w-3" />
+                                                    Scanned ✓
+                                                </span>
+                                            )}
                                         </p>
                                         <p className="text-sm text-zinc-400">
                                             From: <span className="text-zinc-200">{handoff.sender?.companyName}</span>
                                             <span className="text-zinc-600 mx-1">·</span>
-                                            <span className="font-mono text-xs">{handoff.productId}</span>
+                                            Batch: <span className="font-mono text-xs">{batchKey}</span>
+                                            {handoff.unitCount && (
+                                                <span className="text-zinc-600 mx-1">·</span>)
+                                            }
+                                            {handoff.unitCount && (
+                                                <span className="text-blue-400 text-xs font-semibold">{handoff.unitCount} units</span>
+                                            )}
                                         </p>
                                         <p className="text-xs text-zinc-500 mt-1">
                                             Shipped: {new Date(handoff.shippedAt).toLocaleString()}
                                         </p>
                                     </div>
-                                    <Badge variant="info">Awaiting Confirmation</Badge>
+                                    <Badge variant={isScanned ? 'success' : 'info'}>
+                                        {isScanned ? 'Verified' : 'Awaiting Confirmation'}
+                                    </Badge>
                                 </div>
 
-                                {disputeProductId === handoff.productId ? (
+                                {disputeProductId === (handoff.batchNumber || handoff.productId) ? (
                                     <div className="flex items-center gap-2 mt-3">
                                         <input
                                             type="text"
@@ -315,8 +415,8 @@ export const DistributorDashboard = () => {
                                         />
                                         <Button
                                             variant="danger"
-                                            onClick={() => handleDisputeHandoff(handoff.productId)}
-                                            disabled={handoffLoading === handoff.productId}
+                                            onClick={() => handleDisputeHandoff(handoff.batchNumber || handoff.productId)}
+                                            disabled={handoffLoading === (handoff.batchNumber || handoff.productId)}
                                         >
                                             Submit Dispute
                                         </Button>
@@ -327,15 +427,30 @@ export const DistributorDashboard = () => {
                                 ) : (
                                     <div className="flex items-center gap-2 mt-3">
                                         <Button
-                                            onClick={() => handleConfirmHandoff(handoff.productId)}
-                                            disabled={handoffLoading === handoff.productId}
+                                            variant="secondary"
+                                            onClick={() => setShowHandoffScanner(true)}
                                         >
-                                            <ThumbsUp className="h-4 w-4 mr-1" />
-                                            {handoffLoading === handoff.productId ? 'Processing...' : 'Confirm Receipt'}
+                                            <QrCode className="h-4 w-4 mr-1" />
+                                            Scan QR
                                         </Button>
+                                        <div className="relative group">
+                                            <Button
+                                                onClick={() => handleConfirmHandoff(batchKey)}
+                                                disabled={!isScanned || handoffLoading === batchKey}
+                                            >
+                                                <ThumbsUp className="h-4 w-4 mr-1" />
+                                                {handoffLoading === batchKey ? 'Processing...' : 'Confirm Receipt'}
+                                            </Button>
+                                            {!isScanned && (
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-xs text-zinc-300 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-10">
+                                                    Scan QR code first to confirm
+                                                    <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 bg-zinc-800 border-r border-b border-white/10 rotate-45"></div>
+                                                </div>
+                                            )}
+                                        </div>
                                         <Button
                                             variant="danger"
-                                            onClick={() => setDisputeProductId(handoff.productId)}
+                                            onClick={() => setDisputeProductId(handoff.batchNumber || handoff.productId)}
                                         >
                                             <ThumbsDown className="h-4 w-4 mr-1" />
                                             Dispute
@@ -343,7 +458,85 @@ export const DistributorDashboard = () => {
                                     </div>
                                 )}
                             </div>
-                        ))}
+                            );
+                        })}
+                    </div>
+                </Card>
+            )}
+
+            {/* Scan Error */}
+            {scanError && (
+                <Card className="border-red-800 bg-red-900/20">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <AlertCircle className="h-5 w-5 text-red-400" />
+                            <div>
+                                <p className="font-medium text-zinc-100">Scan Failed</p>
+                                <p className="text-sm text-zinc-400">{scanError}</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setScanError(null)} className="text-zinc-500 hover:text-zinc-300 text-sm">Dismiss</button>
+                    </div>
+                </Card>
+            )}
+
+            {/* Your Inventory — batches received, ready to ship onward */}
+            {inventory.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Package className="h-5 w-5 text-emerald-400" />
+                            Your Inventory
+                            <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold">
+                                {inventory.length}
+                            </span>
+                        </CardTitle>
+                        <CardDescription>Batches in your possession — ready to ship onward</CardDescription>
+                    </CardHeader>
+                    <div className="space-y-3">
+                        {inventory.map((item) => {
+                            const batchKey = item.batchNumber || item.product?.batchNumber;
+                            return (
+                                <div key={item._id} className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-900/10">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div>
+                                            <p className="font-medium text-zinc-100">
+                                                {item.batchName || item.product?.name || 'Product'}
+                                            </p>
+                                            <p className="text-sm text-zinc-400">
+                                                Batch: <span className="font-mono text-xs">{batchKey}</span>
+                                                {item.unitCount && (
+                                                    <><span className="text-zinc-600 mx-1">·</span>
+                                                    <span className="text-emerald-400 text-xs font-semibold">{item.unitCount} units</span></>
+                                                )}
+                                                <span className="text-zinc-600 mx-1">·</span>
+                                                From: <span className="text-zinc-200">{item.sender?.companyName || 'Unknown'}</span>
+                                            </p>
+                                            <p className="text-xs text-zinc-500 mt-1">
+                                                Received: {new Date(item.confirmedAt).toLocaleString()}
+                                            </p>
+                                        </div>
+                                        <Badge variant="success">In Stock</Badge>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-3">
+                                        <Button
+                                            variant="secondary"
+                                            onClick={async () => {
+                                                const role = 'Pharmacy';
+                                                setReceiverRole(role);
+                                                setSearchQuery('');
+                                                setSelectedReceiver('');
+                                                setShipModal(item);
+                                                await fetchReceivers(role);
+                                            }}
+                                        >
+                                            <Send className="h-3 w-3 mr-1" />
+                                            Ship
+                                        </Button>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </Card>
             )}
@@ -508,62 +701,245 @@ export const DistributorDashboard = () => {
                 </div>
             )}
 
-            {/* Scanner Modal */}
-            {showScanner && (
-                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-6">
-                    <div className="w-full max-w-md">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-medium text-zinc-100">Scan QR code</h2>
-                            <button
-                                onClick={() => setShowScanner(false)}
-                                className="text-zinc-400 hover:text-zinc-100"
-                            >
-                                Close
-                            </button>
-                        </div>
-                        <div className="bg-zinc-900 rounded-xl overflow-hidden aspect-square">
-                            <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />
-                        </div>
-                    </div>
-                </div>
+            {/* Scanner Modal — handoff / incoming shipment verification */}
+            {showHandoffScanner && (
+                <Scanner onScan={handleHandoffScan} onClose={() => setShowHandoffScanner(false)} />
             )}
             {/* Recent Activity List */}
             {!verificationResult && recentActivity.length > 0 && (
                 <div className="mt-8 animate-fade-in">
-                    <h3 className="text-lg font-medium text-white mb-4">Your Recent Activity</h3>
+                    <h3 className="text-lg font-medium text-white mb-4">Recent Activity</h3>
                     <div className="grid gap-3">
-                        {recentActivity.map((activity) => (
-                            <div key={activity._id} className="p-4 rounded-xl bg-zinc-800/30 border border-white/5 hover:border-white/10 transition-colors">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex gap-3">
-                                        <div className={`mt-1 p-1.5 rounded-full ${activity.status === 'In Transit' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}`}>
-                                            {activity.status === 'In Transit' ? <Truck className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                        {recentActivity.map((activity) => {
+                            const isSender = activity.userRole === 'sender';
+                            const statusConfig = {
+                                'SHIPPED': { iconClass: 'bg-blue-500/20 text-blue-400', icon: <Send className="h-4 w-4" />, label: 'Shipped' },
+                                'CONFIRMED': { iconClass: 'bg-green-500/20 text-green-400', icon: <CheckCircle className="h-4 w-4" />, label: 'Confirmed' },
+                                'DISPUTED': { iconClass: 'bg-red-500/20 text-red-400', icon: <AlertCircle className="h-4 w-4" />, label: 'Disputed' },
+                                'EXPIRED': { iconClass: 'bg-zinc-500/20 text-zinc-400', icon: <Clock className="h-4 w-4" />, label: 'Expired' },
+                            };
+                            const config = statusConfig[activity.status] || statusConfig['SHIPPED'];
+
+                            return (
+                                <div key={activity._id} className="p-4 rounded-xl bg-zinc-800/30 border border-white/5 hover:border-white/10 transition-colors">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex gap-3">
+                                            <div className={`mt-1 p-1.5 rounded-full ${config.iconClass}`}>
+                                                {config.icon}
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-zinc-200 flex items-center gap-2">
+                                                    {activity.batchName || 'Batch'}
+                                                    {activity.unitCount && (
+                                                        <span className="text-xs text-zinc-500 font-normal">{activity.unitCount} units</span>
+                                                    )}
+                                                </p>
+                                                <p className="text-sm text-zinc-400 mt-0.5">
+                                                    {isSender ? (
+                                                        <>Shipped to <span className="text-zinc-200">{activity.receiver?.companyName || 'Unknown'}</span></>
+                                                    ) : (
+                                                        <>Received from <span className="text-zinc-200">{activity.sender?.companyName || 'Unknown'}</span></>
+                                                    )}
+                                                </p>
+                                                <p className="text-xs text-zinc-500 font-mono mt-0.5">
+                                                    {activity.batchNumber}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-medium text-zinc-200">
-                                                {activity.status}
-                                            </p>
-                                            <p className="text-sm text-zinc-400">
-                                                {activity.product?.name} <span className="text-zinc-600">•</span> <span className="font-mono text-zinc-500">{activity.product?.productId}</span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="flex items-center text-xs text-zinc-500 gap-1">
-                                            <Clock className="h-3 w-3" />
-                                            {new Date(activity.timestamp).toLocaleDateString()}
+                                        <div className="text-right flex flex-col items-end gap-1.5">
+                                            <Badge variant={
+                                                activity.status === 'CONFIRMED' ? 'success' :
+                                                activity.status === 'DISPUTED' ? 'danger' :
+                                                activity.status === 'SHIPPED' ? 'warning' :
+                                                'secondary'
+                                            }>
+                                                {isSender ? `Sent · ${config.label}` : `Received · ${config.label}`}
+                                            </Badge>
+                                            <div className="flex items-center text-xs text-zinc-500 gap-1">
+                                                <Clock className="h-3 w-3" />
+                                                {new Date(activity.shippedAt).toLocaleDateString()}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                {activity.notes && (
-                                    <p className="mt-2 text-sm text-zinc-500 pl-11">"{activity.notes}"</p>
-                                )}
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
         </DashboardShell>
+
+        {/* Ship Modal */}
+        {shipModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+                <Card className="w-full max-w-md mx-4">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 rounded-lg bg-blue-500/10">
+                            <Send className="h-5 w-5 text-blue-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold text-zinc-100">Forward Shipment</h3>
+                            <p className="text-sm text-zinc-400">{shipModal.batchName || shipModal.product?.name} · Batch: {shipModal.batchNumber || shipModal.product?.batchNumber}</p>
+                        </div>
+                    </div>
+                    <p className="text-sm text-zinc-400 mb-4">
+                        Select the recipient to ship this batch to. They must confirm receipt before the product status updates.
+                    </p>
+
+                    {/* Ship To Role Toggle */}
+                    <div className="mb-4">
+                        <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">
+                            Ship To
+                        </label>
+                        <div className="flex p-1 bg-zinc-900 rounded-xl border border-white/5">
+                            {['Pharmacy', 'Distributor'].map((role) => (
+                                <button
+                                    key={role}
+                                    type="button"
+                                    onClick={() => {
+                                        setReceiverRole(role);
+                                        setSelectedReceiver('');
+                                        setSearchQuery('');
+                                        fetchReceivers(role);
+                                    }}
+                                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                                        receiverRole === role 
+                                            ? 'bg-blue-500 text-white shadow-lg' 
+                                            : 'text-zinc-500 hover:text-zinc-300'
+                                    }`}
+                                >
+                                    {role === 'Pharmacy' ? 'Pharmacies' : `${role}s`}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Receiver Selector with Search */}
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-zinc-300 mb-2">
+                            <Users className="h-4 w-4 inline mr-1" />
+                            Select {receiverRole} *
+                        </label>
+                        
+                        <div className="space-y-3">
+                            {/* Search Input */}
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                                <input
+                                    type="text"
+                                    placeholder={`Search ${receiverRole.toLowerCase()} by name or location...`}
+                                    value={searchQuery}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                        if (e.target.value !== searchQuery) {
+                                            setSelectedReceiver('');
+                                        }
+                                    }}
+                                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                                />
+                            </div>
+
+                            {receivers.length === 0 ? (
+                                <p className="text-sm text-zinc-500 italic py-2">Loading receivers...</p>
+                            ) : (() => {
+                                const filtered = receivers.filter(d => {
+                                    if (!searchQuery.trim()) return true;
+                                    const search = searchQuery.toLowerCase();
+                                    return d.companyName.toLowerCase().includes(search) || 
+                                           d.location.toLowerCase().includes(search);
+                                });
+
+                                if (filtered.length === 0) {
+                                    return (
+                                        <div className="py-4 text-center rounded-xl bg-zinc-900/50 border border-white/5">
+                                            <p className="text-sm text-zinc-500">No {receiverRole.toLowerCase()}s found matching "<span className="text-zinc-300">{searchQuery}</span>"</p>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div className="max-h-48 overflow-y-auto rounded-xl border border-white/5 bg-zinc-900/50 divide-y divide-white/5 custom-scrollbar">
+                                        {filtered.map((d) => (
+                                            <button
+                                                key={d._id}
+                                                type="button"
+                                                onClick={() => setSelectedReceiver(d._id)}
+                                                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all hover:bg-white/5 ${
+                                                    selectedReceiver === d._id 
+                                                        ? 'bg-blue-500/10 border-l-2 border-l-blue-500' 
+                                                        : 'border-l-2 border-l-transparent'
+                                                }`}
+                                            >
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                                                    selectedReceiver === d._id 
+                                                        ? 'bg-blue-500 text-white' 
+                                                        : 'bg-zinc-800 text-zinc-400'
+                                                }`}>
+                                                    {d.companyName.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className={`text-sm font-medium truncate ${
+                                                        selectedReceiver === d._id ? 'text-blue-300' : 'text-zinc-200'
+                                                    }`}>
+                                                        {d.companyName}
+                                                    </p>
+                                                    <p className="text-xs text-zinc-500 truncate">{d.location}</p>
+                                                </div>
+                                                {selectedReceiver === d._id && (
+                                                    <CheckCircle className="h-4 w-4 text-blue-400 ml-auto shrink-0" />
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                        <Button variant="secondary" onClick={() => { setShipModal(null); setSelectedReceiver(''); setSearchQuery(''); }}>Cancel</Button>
+                        <Button
+                            loading={shipLoading}
+                            disabled={!selectedReceiver}
+                            onClick={() => {
+                                requestLocation(async ({ latitude, longitude }) => {
+                                    setShipLoading(true);
+                                    try {
+                                        const token = sessionStorage.getItem('token');
+                                        const batchNumber = shipModal.batchNumber || shipModal.product?.batchNumber;
+                                        const res = await fetch('/api/track/ship-batch', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                                            body: JSON.stringify({
+                                                batchNumber,
+                                                receiverId: selectedReceiver,
+                                                notes: `Forwarded batch ${batchNumber}`,
+                                                latitude,
+                                                longitude
+                                            })
+                                        });
+                                        const data = await res.json();
+                                        if (!res.ok) throw new Error(data.message || 'Failed to ship batch');
+                                        setShipModal(null);
+                                        setSelectedReceiver('');
+                                        setSearchQuery('');
+                                        fetchInventory();
+                                        fetchHistory();
+                                    } catch (err) {
+                                        setError(err.message);
+                                    } finally {
+                                        setShipLoading(false);
+                                    }
+                                });
+                            }}
+                        >
+                            <Send className="h-4 w-4 mr-2" />
+                            Confirm Ship
+                        </Button>
+                    </div>
+                </Card>
+            </div>
+        )}
         </>
     );
 };

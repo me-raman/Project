@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Search, CheckCircle, AlertCircle, Package, Truck, Calendar, Clock, Inbox, ThumbsUp, ThumbsDown, PlusSquare } from 'lucide-react';
+import { ShieldCheck, Search, CheckCircle, AlertCircle, Package, Truck, Calendar, Clock, Inbox, ThumbsUp, ThumbsDown, PlusSquare, QrCode, Send } from 'lucide-react';
 import { Scanner } from './Scanner';
 import { DashboardShell } from './layout/DashboardShell';
 import { Button, Card, CardHeader, CardTitle, CardDescription, Input, Select, Textarea, Badge } from './ui';
@@ -8,7 +8,6 @@ import { useStrictLocation } from '../hooks/useStrictLocation';
 
 export const PharmacyDashboard = () => {
     const [query, setQuery] = useState('');
-    const [showScanner, setShowScanner] = useState(false);
     const [loading, setLoading] = useState(false);
     const [verificationResult, setVerificationResult] = useState(null);
     const [error, setError] = useState(null);
@@ -18,6 +17,9 @@ export const PharmacyDashboard = () => {
     const [handoffLoading, setHandoffLoading] = useState(null);
     const [disputeReason, setDisputeReason] = useState('');
     const [disputeProductId, setDisputeProductId] = useState(null);
+    const [scannedBatches, setScannedBatches] = useState([]);
+    const [showHandoffScanner, setShowHandoffScanner] = useState(false);
+    const [scanError, setScanError] = useState(null);
     const { requestLocation, locationModal } = useStrictLocation();
 
     useEffect(() => {
@@ -28,7 +30,7 @@ export const PharmacyDashboard = () => {
     const fetchHistory = async () => {
         try {
             const token = sessionStorage.getItem('token');
-            const response = await fetch('/api/track/user/history', {
+            const response = await fetch('/api/track/my-activity', {
                 headers: { 'x-auth-token': token }
             });
             if (response.ok) {
@@ -36,7 +38,7 @@ export const PharmacyDashboard = () => {
                 setRecentActivity(data);
             }
         } catch (err) {
-            console.error('Failed to fetch history:', err);
+            console.error('Failed to fetch activity:', err);
         }
     };
 
@@ -55,13 +57,13 @@ export const PharmacyDashboard = () => {
         }
     };
 
-    const handleConfirmHandoff = async (productId) => {
+    const handleConfirmHandoff = async (batchNumber) => {
         // Gate: require live GPS before confirming receipt
         requestLocation(async ({ latitude, longitude }) => {
-            setHandoffLoading(productId);
+            setHandoffLoading(batchNumber);
             try {
                 const token = sessionStorage.getItem('token');
-                const res = await fetch(`/api/track/confirm/${encodeURIComponent(productId)}`, {
+                const res = await fetch(`/api/track/confirm-batch/${encodeURIComponent(batchNumber)}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
                     body: JSON.stringify({ notes: 'Confirmed receipt at pharmacy', latitude, longitude })
@@ -81,12 +83,12 @@ export const PharmacyDashboard = () => {
         });
     };
 
-    const handleDisputeHandoff = async (productId) => {
+    const handleDisputeHandoff = async (batchNumber) => {
         if (!disputeReason) { setError('Please enter a dispute reason'); return; }
-        setHandoffLoading(productId);
+        setHandoffLoading(batchNumber);
         try {
             const token = sessionStorage.getItem('token');
-            const res = await fetch(`/api/track/dispute/${encodeURIComponent(productId)}`, {
+            const res = await fetch(`/api/track/dispute-batch/${encodeURIComponent(batchNumber)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
                 body: JSON.stringify({ reason: disputeReason })
@@ -200,9 +202,40 @@ export const PharmacyDashboard = () => {
         if (query.trim()) executeSearch(query);
     };
 
-    const handleScan = (decodedText) => {
-        setShowScanner(false);
-        executeSearch(decodedText);
+    const handleHandoffScan = async (decodedText) => {
+        setShowHandoffScanner(false);
+        setScanError(null);
+
+        try {
+            const productId = extractProductId(decodedText);
+            const token = sessionStorage.getItem('token');
+            const res = await fetch(`/api/product/${encodeURIComponent(productId)}`, {
+                headers: { 'x-auth-token': token }
+            });
+            if (!res.ok) throw new Error('Product not found');
+            const data = await res.json();
+            const scannedBatch = data.product?.batchNumber;
+
+            if (!scannedBatch) {
+                setScanError('Could not determine batch number from scanned product');
+                return;
+            }
+
+            const match = pendingHandoffs.find(h =>
+                (h.batchNumber || h.product?.batchNumber) === scannedBatch
+            );
+
+            if (match) {
+                const batchKey = match.batchNumber || match.product?.batchNumber;
+                if (!scannedBatches.includes(batchKey)) {
+                    setScannedBatches(prev => [...prev, batchKey]);
+                }
+            } else {
+                setScanError('This batch is not assigned to you');
+            }
+        } catch (err) {
+            setScanError(err.message || 'Failed to verify scanned QR code');
+        }
     };
 
     const statusOptions = [
@@ -246,20 +279,34 @@ export const PharmacyDashboard = () => {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                         <input
                             type="text"
-                            placeholder="Scan or enter product ID"
+                            placeholder="Enter product ID to verify"
                             className="w-full pl-10 pr-4 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                         />
                     </div>
-                    <Button type="button" variant="secondary" onClick={() => setShowScanner(true)}>
-                        Scan QR
-                    </Button>
                     <Button type="submit" loading={loading} className="bg-emerald-600 hover:bg-emerald-500">
                         Verify
                     </Button>
                 </form>
+                <p className="text-xs text-zinc-500 mt-2">Can’t scan QR? Type the product ID above to verify manually.</p>
             </Card>
+
+            {/* Scan Error Banner */}
+            {scanError && (
+                <Card className="border-red-800 bg-red-900/20 animate-shake">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <AlertCircle className="h-5 w-5 text-red-400" />
+                            <div>
+                                <p className="font-medium text-zinc-100">Scan Failed</p>
+                                <p className="text-sm text-zinc-400">{scanError}</p>
+                            </div>
+                        </div>
+                        <Button variant="secondary" onClick={() => setScanError(null)}>Dismiss</Button>
+                    </div>
+                </Card>
+            )}
 
             {pendingHandoffs.length > 0 && (
                 <Card>
@@ -271,26 +318,47 @@ export const PharmacyDashboard = () => {
                                 {pendingHandoffs.length}
                             </span>
                         </CardTitle>
-                        <CardDescription>Verify and confirm receipt of products from distributors</CardDescription>
+                        <CardDescription>Scan QR code to verify, then confirm receipt</CardDescription>
                     </CardHeader>
                     <div className="space-y-3">
-                        {pendingHandoffs.map((handoff) => (
-                            <div key={handoff._id} className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-900/10">
+                        {pendingHandoffs.map((handoff) => {
+                            const batchKey = handoff.batchNumber || handoff.product?.batchNumber;
+                            const isScanned = scannedBatches.includes(batchKey);
+
+                            return (
+                            <div key={handoff._id} className={`p-4 rounded-xl border ${isScanned ? 'border-emerald-500/30 bg-emerald-900/10' : 'border-blue-500/20 bg-blue-900/10'}`}>
                                 <div className="flex items-start justify-between mb-2">
                                     <div>
-                                        <p className="font-medium text-zinc-100">
-                                            {handoff.product?.name || 'Product'}
+                                        <p className="font-medium text-zinc-100 flex items-center gap-2">
+                                            {handoff.batchName || handoff.product?.name || 'Product'}
+                                            {isScanned && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold uppercase tracking-wider">
+                                                    <CheckCircle className="h-3 w-3" />
+                                                    Scanned ✓
+                                                </span>
+                                            )}
                                         </p>
                                         <p className="text-sm text-zinc-400">
                                             From: <span className="text-zinc-200">{handoff.sender?.companyName}</span>
                                             <span className="text-zinc-600 mx-1">·</span>
-                                            <span className="font-mono text-xs">{handoff.productId}</span>
+                                            Batch: <span className="font-mono text-xs">{batchKey}</span>
+                                            {handoff.unitCount && (
+                                                <span className="text-zinc-600 mx-1">·</span>)
+                                            }
+                                            {handoff.unitCount && (
+                                                <span className="text-emerald-400 text-xs font-semibold">{handoff.unitCount} units</span>
+                                            )}
+                                        </p>
+                                        <p className="text-xs text-zinc-500 mt-1">
+                                            Shipped: {new Date(handoff.shippedAt).toLocaleString()}
                                         </p>
                                     </div>
-                                    <Badge variant="info">Awaiting Receipt</Badge>
+                                    <Badge variant={isScanned ? 'success' : 'info'}>
+                                        {isScanned ? 'Verified' : 'Awaiting Scan'}
+                                    </Badge>
                                 </div>
 
-                                {disputeProductId === handoff.productId ? (
+                                {disputeProductId === (handoff.batchNumber || handoff.productId) ? (
                                     <div className="flex items-center gap-2 mt-3">
                                         <input
                                             type="text"
@@ -301,8 +369,8 @@ export const PharmacyDashboard = () => {
                                         />
                                         <Button
                                             variant="danger"
-                                            onClick={() => handleDisputeHandoff(handoff.productId)}
-                                            disabled={handoffLoading === handoff.productId}
+                                            onClick={() => handleDisputeHandoff(handoff.batchNumber || handoff.productId)}
+                                            disabled={handoffLoading === (handoff.batchNumber || handoff.productId)}
                                         >
                                             Submit Dispute
                                         </Button>
@@ -313,15 +381,31 @@ export const PharmacyDashboard = () => {
                                 ) : (
                                     <div className="flex items-center gap-2 mt-3">
                                         <Button
-                                            onClick={() => handleConfirmHandoff(handoff.productId)}
-                                            disabled={handoffLoading === handoff.productId}
-                                            className="bg-emerald-600 hover:bg-emerald-500"
+                                            variant="secondary"
+                                            onClick={() => setShowHandoffScanner(true)}
                                         >
-                                            {handoffLoading === handoff.productId ? 'Processing...' : 'Confirm Receipt'}
+                                            <QrCode className="h-4 w-4 mr-1" />
+                                            Scan QR
                                         </Button>
+                                        <div className="relative group">
+                                            <Button
+                                                onClick={() => handleConfirmHandoff(batchKey)}
+                                                disabled={!isScanned || handoffLoading === batchKey}
+                                                className="bg-emerald-600 hover:bg-emerald-500"
+                                            >
+                                                <ThumbsUp className="h-4 w-4 mr-1" />
+                                                {handoffLoading === batchKey ? 'Processing...' : 'Confirm Receipt'}
+                                            </Button>
+                                            {!isScanned && (
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg bg-zinc-800 border border-white/10 text-xs text-zinc-300 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-10">
+                                                    Scan QR code first to confirm
+                                                    <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 bg-zinc-800 border-r border-b border-white/10 rotate-45"></div>
+                                                </div>
+                                            )}
+                                        </div>
                                         <Button
                                             variant="danger"
-                                            onClick={() => setDisputeProductId(handoff.productId)}
+                                            onClick={() => setDisputeProductId(handoff.batchNumber || handoff.productId)}
                                             className="bg-red-900/40 hover:bg-red-900/60"
                                         >
                                             Dispute
@@ -329,7 +413,8 @@ export const PharmacyDashboard = () => {
                                     </div>
                                 )}
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </Card>
             )}
@@ -474,56 +559,71 @@ export const PharmacyDashboard = () => {
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-xl font-bold text-white flex items-center gap-2">
                             <Clock className="h-5 w-5 text-emerald-400" />
-                            Recent Operations
+                            Recent Activity
                         </h3>
                     </div>
-                    <div className="grid gap-4">
-                        {recentActivity.slice(0, 5).map((activity) => (
-                            <div key={activity._id} className="p-5 rounded-2xl bg-zinc-900/50 border border-white/5 hover:border-emerald-500/10 transition-all group">
-                                <div className="flex justify-between items-center">
-                                    <div className="flex gap-4 items-center">
-                                        <div className={`p-2.5 rounded-xl ${activity.status.includes('Dispensed') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                            {activity.status.includes('Dispensed') ? <PlusSquare className="h-5 w-5" /> : <Package className="h-5 w-5" />}
+                    <div className="grid gap-3">
+                        {recentActivity.map((activity) => {
+                            const isSender = activity.userRole === 'sender';
+                            const statusConfig = {
+                                'SHIPPED': { iconClass: 'bg-blue-500/20 text-blue-400', icon: <Send className="h-4 w-4" />, label: 'Shipped' },
+                                'CONFIRMED': { iconClass: 'bg-emerald-500/20 text-emerald-400', icon: <CheckCircle className="h-4 w-4" />, label: 'Confirmed' },
+                                'DISPUTED': { iconClass: 'bg-red-500/20 text-red-400', icon: <AlertCircle className="h-4 w-4" />, label: 'Disputed' },
+                                'EXPIRED': { iconClass: 'bg-zinc-500/20 text-zinc-400', icon: <Clock className="h-4 w-4" />, label: 'Expired' },
+                            };
+                            const config = statusConfig[activity.status] || statusConfig['SHIPPED'];
+
+                            return (
+                                <div key={activity._id} className="p-4 rounded-xl bg-zinc-800/30 border border-white/5 hover:border-emerald-500/10 transition-colors">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex gap-3">
+                                            <div className={`mt-1 p-1.5 rounded-full ${config.iconClass}`}>
+                                                {config.icon}
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-zinc-200 flex items-center gap-2">
+                                                    {activity.batchName || 'Batch'}
+                                                    {activity.unitCount && (
+                                                        <span className="text-xs text-zinc-500 font-normal">{activity.unitCount} units</span>
+                                                    )}
+                                                </p>
+                                                <p className="text-sm text-zinc-400 mt-0.5">
+                                                    {isSender ? (
+                                                        <>Shipped to <span className="text-zinc-200">{activity.receiver?.companyName || 'Unknown'}</span></>
+                                                    ) : (
+                                                        <>Received from <span className="text-zinc-200">{activity.sender?.companyName || 'Unknown'}</span></>
+                                                    )}
+                                                </p>
+                                                <p className="text-xs text-zinc-500 font-mono mt-0.5">
+                                                    {activity.batchNumber}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-bold text-zinc-100 group-hover:text-white transition-colors">
-                                                {activity.status}
-                                            </p>
-                                            <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wider font-mono">
-                                                {activity.product?.name} • {activity.product?.productId}
-                                            </p>
+                                        <div className="text-right flex flex-col items-end gap-1.5">
+                                            <Badge variant={
+                                                activity.status === 'CONFIRMED' ? 'success' :
+                                                activity.status === 'DISPUTED' ? 'danger' :
+                                                activity.status === 'SHIPPED' ? 'warning' :
+                                                'secondary'
+                                            }>
+                                                {isSender ? `Sent · ${config.label}` : `Received · ${config.label}`}
+                                            </Badge>
+                                            <div className="flex items-center text-xs text-zinc-500 gap-1">
+                                                <Clock className="h-3 w-3" />
+                                                {new Date(activity.shippedAt).toLocaleDateString()}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="text-right text-xs text-zinc-600 font-medium">
-                                        {new Date(activity.timestamp).toLocaleDateString()}
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
 
-            {showScanner && (
-                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
-                    <div className="w-full max-w-lg border border-white/10 rounded-[2.5rem] bg-[#0c0d10] p-8 shadow-2xl">
-                        <div className="flex justify-between items-center mb-8">
-                            <div>
-                                <h2 className="text-2xl font-bold text-white">Inventory Scanner</h2>
-                                <p className="text-sm text-zinc-500">Align QR code for secure verification</p>
-                            </div>
-                            <button
-                                onClick={() => setShowScanner(false)}
-                                className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
-                            >
-                                <AlertCircle className="h-6 w-6" />
-                            </button>
-                        </div>
-                        <div className="rounded-[2rem] overflow-hidden aspect-square ring-1 ring-white/10 bg-black/40">
-                            <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />
-                        </div>
-                    </div>
-                </div>
+            {/* Handoff Scanner Modal */}
+            {showHandoffScanner && (
+                <Scanner onScan={handleHandoffScan} onClose={() => setShowHandoffScanner(false)} />
             )}
         </DashboardShell>
         </>
