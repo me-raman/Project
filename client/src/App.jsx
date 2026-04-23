@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar, Footer } from './components/Layout';
 import { Home } from './pages/Home';
 import { ProductDetails } from './pages/ProductDetails';
@@ -18,6 +18,7 @@ function App() {
     if (path === '/profile') return 'profile';
     if (path === '/change-password') return 'change-password';
     if (path === '/reset-password') return 'reset-password';
+    if (path.startsWith('/verify/')) return 'verify';
     return 'home';
   });
   const [productData, setProductData] = useState(null);
@@ -25,6 +26,17 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [verificationMeta, setVerificationMeta] = useState(null);
+
+  // Auto-verify when landing on /verify/:productId
+  useEffect(() => {
+    if (view === 'verify') {
+      const path = window.location.pathname;
+      const encodedId = path.replace('/verify/', '');
+      if (encodedId) {
+        handleSearch(decodeURIComponent(encodedId));
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearch = async (query) => {
     setLoading(true);
@@ -111,6 +123,7 @@ function App() {
   };
 
   const handleBack = () => {
+    window.history.pushState({}, '', '/');
     setView('home');
     setProductData(null);
     setEvents([]);
@@ -147,6 +160,42 @@ function App() {
         {view === 'reset-password' && <ResetPassword />}
 
         {view === 'details' && productData && (
+          <ProductDetails
+            product={productData}
+            events={events}
+            onBack={handleBack}
+            verificationMeta={verificationMeta}
+          />
+        )}
+
+        {view === 'verify' && !productData && (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              {loading ? (
+                <>
+                  <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-zinc-400 text-lg">Verifying product authenticity...</p>
+                </>
+              ) : error ? (
+                <div className="max-w-md mx-auto p-8">
+                  <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl">⚠️</span>
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Verification Failed</h2>
+                  <p className="text-zinc-400 mb-6">{error}</p>
+                  <button
+                    onClick={handleBack}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-500 transition-colors"
+                  >
+                    Go to Home
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
+
+        {view === 'verify' && productData && (
           <ProductDetails
             product={productData}
             events={events}
