@@ -588,28 +588,6 @@ router.post('/dispute-batch/:batchNumber', auth, authorize('Distributor', 'Pharm
     }
 });
 
-// @route   GET /api/track/pending
-// @desc    Get pending handoffs designated for the current user (batch-level)
-router.get('/pending', auth, async (req, res) => {
-    try {
-        const pendingHandoffs = await Handoff.find({
-            receiver: req.user.userId,
-            status: 'SHIPPED'
-        })
-            .populate('sender', 'companyName location role')
-            .populate('product', 'name productId batchNumber')
-            .sort({ shippedAt: -1 });
-
-        res.json({
-            totalPending: pendingHandoffs.length,
-            handoffs: pendingHandoffs
-        });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
 // @route   GET /api/track/handoff-history/:productId
 // @desc    Full handoff chain for a product
 router.get('/handoff-history/:productId', auth, async (req, res) => {

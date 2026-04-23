@@ -153,13 +153,22 @@ export const PharmacyDashboard = () => {
     };
 
     const extractProductId = (rawValue) => {
-        if (!rawValue || !rawValue.includes('.')) return rawValue;
-        const lastDotIndex = rawValue.lastIndexOf('.');
-        const possibleSig = rawValue.substring(lastDotIndex + 1);
-        if (possibleSig.length === 16 && /^[0-9a-f]+$/i.test(possibleSig)) {
-            return rawValue.substring(0, lastDotIndex);
+        if (!rawValue) return rawValue;
+        // Strip URL prefix if present (e.g. http://localhost:5173/verify/...)
+        let value = rawValue;
+        const verifyIdx = value.indexOf('/verify/');
+        if (verifyIdx !== -1) {
+            value = decodeURIComponent(value.substring(verifyIdx + '/verify/'.length));
         }
-        return rawValue;
+        // Strip QR signature if present (16 hex chars after last dot)
+        if (value.includes('.')) {
+            const lastDotIndex = value.lastIndexOf('.');
+            const possibleSig = value.substring(lastDotIndex + 1);
+            if (possibleSig.length === 16 && /^[0-9a-f]+$/i.test(possibleSig)) {
+                return value.substring(0, lastDotIndex);
+            }
+        }
+        return value;
     };
 
     const executeSearch = async (id) => {

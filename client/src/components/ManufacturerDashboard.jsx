@@ -335,7 +335,7 @@ export const ManufacturerDashboard = () => {
                                 <div className="bg-white p-2 rounded mb-2">
                                     <QRCode
                                         size={72}
-                                        value={prod.qrPayload || prod.productId}
+                                        value={`${window.location.origin}/verify/${encodeURIComponent(prod.qrPayload || prod.productId)}`}
                                         style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
                                         viewBox="0 0 256 256"
                                     />
