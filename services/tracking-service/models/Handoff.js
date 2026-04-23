@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 /**
  * Handoff — Dual-Confirmation Transfer Record
  * 
- * Every product transfer requires TWO steps:
+ * Every batch transfer requires TWO steps:
  * 1. Sender initiates shipment (status: SHIPPED)
  * 2. Receiver confirms receipt (status: CONFIRMED)
  * 
@@ -11,8 +11,13 @@ const mongoose = require('mongoose');
  * If not confirmed within 72 hours, status becomes EXPIRED.
  */
 const HandoffSchema = new mongoose.Schema({
-    product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
-    productId: { type: String, required: true }, // Denormalized for quick lookup
+    // Batch-level fields (primary)
+    batchNumber: { type: String },
+    batchName: { type: String },
+    unitCount: { type: Number },
+    // Legacy per-product fields (kept for backward compat)
+    product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+    productId: { type: String }, // Denormalized for quick lookup
     sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     senderRole: { type: String, required: true },
     receiver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -39,6 +44,7 @@ const HandoffSchema = new mongoose.Schema({
 
 // Indexes
 HandoffSchema.index({ productId: 1, status: 1 });
+HandoffSchema.index({ batchNumber: 1, status: 1 });
 HandoffSchema.index({ sender: 1, status: 1 });
 HandoffSchema.index({ receiver: 1, status: 1 });
 HandoffSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL for auto-cleanup (optional)

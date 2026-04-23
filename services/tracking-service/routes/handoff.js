@@ -32,7 +32,7 @@ router.post('/ship/:productId', auth, authorize('Manufacturer', 'Distributor', '
         // Validate receiver role makes sense in supply chain
         const senderRole = req.user.role;
         const validReceiverRoles = {
-            'Manufacturer': ['Distributor'],
+            'Manufacturer': ['Distributor', 'Pharmacy'],
             'Distributor': ['Distributor', 'Pharmacy'],
             'Admin': ['Manufacturer', 'Distributor', 'Pharmacy']
         };
@@ -335,18 +335,360 @@ router.get('/handoff-history/:productId', auth, async (req, res) => {
     }
 });
 
-// @route   GET /api/track/batch-receivers/:batchNumber
-// @desc    Get unique receivers who have already been shipped products from this batch
-router.get('/batch-receivers/:batchNumber', auth, async (req, res) => {
-    try {
-        const { batchNumber } = req.params;
-        // Search for handoffs where productId starts with PROD-batchNumber-
-        const handoffs = await Handoff.find({
-            productId: { $regex: new RegExp(`^PROD-${batchNumber}-`, 'i') }
-        }).select('receiver');
+// @route   POST /api/track/ship-batch
+// @desc    Ship an entire batch to a receiver (single handoff for the whole batch)
+router.post('/ship-batch', auth, authorize('Manufacturer', 'Distributor', 'Admin'), requireCoords(), async (req, res) => {
+    const { batchNumber, receiverId, notes, latitude, longitude } = req.body;
 
-        const receiverIds = [...new Set(handoffs.map(h => h.receiver?.toString()).filter(id => !!id))];
-        res.json(receiverIds);
+    try {
+        if (!batchNumber || !receiverId) {
+            return res.status(400).json({ message: 'batchNumber and receiverId are required.' });
+        }
+
+        // Validate receiver exists
+        const receiver = await User.findById(receiverId);
+        if (!receiver) {
+            return res.status(404).json({ message: 'Receiver not found.' });
+        }
+
+        // Validate receiver role
+        const senderRole = req.user.role;
+        const validReceiverRoles = {
+            'Manufacturer': ['Distributor', 'Pharmacy'],
+            'Distributor': ['Distributor', 'Pharmacy'],
+            'Admin': ['Manufacturer', 'Distributor', 'Pharmacy']
+        };
+        if (!validReceiverRoles[senderRole]?.includes(receiver.role)) {
+            return res.status(400).json({
+                message: `A ${senderRole} cannot ship to a ${receiver.role}.`
+            });
+        }
+
+        if (receiverId === req.user.userId) {
+            return res.status(400).json({ message: 'Cannot ship to yourself.' });
+        }
+
+        // Check if this batch already has a pending shipment
+        const existingHandoff = await Handoff.findOne({
+            batchNumber,
+            status: 'SHIPPED'
+        });
+        if (existingHandoff) {
+            return res.status(400).json({
+                message: 'This batch already has a pending shipment. Wait for confirmation or dispute first.'
+            });
+        }
+
+        // Get all products in this batch
+        // Manufacturers query by ownership; Distributors query by current possession
+        const productQuery = req.user.role === 'Manufacturer'
+            ? { batchNumber, manufacturer: req.user.userId }
+            : { batchNumber, currentHandler: req.user.userId, currentStatus: 'In Transit' };
+        const products = await Product.find(productQuery);
+        if (products.length === 0) {
+            return res.status(404).json({ message: 'No products found for this batch.' });
+        }
+
+        const sender = await User.findById(req.user.userId);
+        const batchName = products[0].name;
+
+        // Create ONE handoff record for the entire batch
+        const handoff = new Handoff({
+            batchNumber,
+            batchName,
+            unitCount: products.length,
+            product: products[0]._id, // Reference first product for backward compat
+            productId: products[0].productId,
+            sender: req.user.userId,
+            senderRole: req.user.role,
+            receiver: receiverId,
+            receiverRole: receiver.role,
+            status: 'SHIPPED',
+            shippedAt: new Date(),
+            senderLatitude: latitude || undefined,
+            senderLongitude: longitude || undefined,
+            expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000)
+        });
+
+        await handoff.save();
+
+        // Update ALL products in the batch (use found product IDs for safety)
+        const productIds = products.map(p => p._id);
+        await Product.updateMany(
+            { _id: { $in: productIds } },
+            {
+                currentStatus: 'Pending Confirmation',
+                currentLocation: `In transit: ${sender?.companyName || 'Unknown'} → ${receiver.companyName}`
+            }
+        );
+
+        // Create one tracking event per product
+        const trackingEvents = products.map(p => ({
+            product: p._id,
+            handler: req.user.userId,
+            location: sender?.location || 'Unknown',
+            status: 'Shipped',
+            notes: notes || `Batch ${batchNumber} shipped by ${sender?.companyName || 'Unknown'} → ${receiver.companyName}`,
+            latitude: latitude || undefined,
+            longitude: longitude || undefined
+        }));
+        await Tracking.insertMany(trackingEvents);
+
+        res.json({
+            message: `Batch ${batchNumber} (${products.length} units) shipped to ${receiver.companyName}. Awaiting confirmation.`,
+            handoff: {
+                id: handoff._id,
+                batchNumber,
+                batchName,
+                unitCount: products.length,
+                status: 'SHIPPED',
+                receiver: receiver.companyName,
+                shippedAt: handoff.shippedAt
+            }
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   POST /api/track/confirm-batch/:batchNumber
+// @desc    Receiver confirms receipt of an entire batch
+router.post('/confirm-batch/:batchNumber', auth, authorize('Distributor', 'Pharmacy', 'Admin'), requireCoords(), async (req, res) => {
+    const { batchNumber } = req.params;
+    const { notes, latitude, longitude } = req.body;
+
+    try {
+        const handoff = await Handoff.findOne({
+            batchNumber,
+            status: 'SHIPPED'
+        }).populate('sender', 'companyName location');
+
+        if (!handoff) {
+            return res.status(404).json({ message: 'No pending shipment found for this batch.' });
+        }
+
+        // Only the designated receiver can confirm
+        if (handoff.receiver.toString() !== req.user.userId) {
+            return res.status(403).json({ message: 'Only the designated receiver can confirm this shipment.' });
+        }
+
+        const receiver = await User.findById(req.user.userId);
+        const isPharmacy = req.user.role === 'Pharmacy';
+        const newStatus = isPharmacy ? 'Received at Pharmacy' : 'In Transit';
+
+        // Update handoff
+        handoff.status = 'CONFIRMED';
+        handoff.confirmedAt = new Date();
+        handoff.receiverLatitude = latitude || undefined;
+        handoff.receiverLongitude = longitude || undefined;
+        await handoff.save();
+
+        // Get all products in the batch and update them
+        const products = await Product.find({ batchNumber });
+
+        await Product.updateMany(
+            { batchNumber },
+            {
+                currentStatus: newStatus,
+                currentLocation: receiver?.location || 'Unknown',
+                currentHandler: req.user.userId
+            }
+        );
+
+        // Create tracking events for all products
+        const trackingEvents = products.map(p => ({
+            product: p._id,
+            handler: req.user.userId,
+            location: receiver?.location || 'Unknown',
+            status: newStatus,
+            notes: notes || `Batch ${batchNumber} confirmed by ${receiver?.companyName || 'Unknown'}`,
+            latitude: latitude || undefined,
+            longitude: longitude || undefined
+        }));
+        await Tracking.insertMany(trackingEvents);
+
+        res.json({
+            message: `Batch ${batchNumber} (${products.length} units) confirmed. Status: ${newStatus}`,
+            handoff: {
+                id: handoff._id,
+                batchNumber,
+                status: 'CONFIRMED',
+                confirmedAt: handoff.confirmedAt
+            }
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   POST /api/track/dispute-batch/:batchNumber
+// @desc    Receiver disputes an entire batch shipment
+router.post('/dispute-batch/:batchNumber', auth, authorize('Distributor', 'Pharmacy', 'Admin'), async (req, res) => {
+    const { batchNumber } = req.params;
+    const { reason, latitude, longitude } = req.body;
+
+    try {
+        const handoff = await Handoff.findOne({
+            batchNumber,
+            status: 'SHIPPED'
+        }).populate('sender', 'companyName');
+
+        if (!handoff) {
+            return res.status(404).json({ message: 'No pending shipment found for this batch.' });
+        }
+
+        if (!reason) {
+            return res.status(400).json({ message: 'Dispute reason is required.' });
+        }
+
+        const receiver = await User.findById(req.user.userId);
+
+        // Update handoff
+        handoff.status = 'DISPUTED';
+        handoff.disputeReason = reason;
+        handoff.disputedAt = new Date();
+        handoff.receiverLatitude = latitude || undefined;
+        handoff.receiverLongitude = longitude || undefined;
+        await handoff.save();
+
+        // Update all products in batch
+        const products = await Product.find({ batchNumber });
+        await Product.updateMany(
+            { batchNumber },
+            { currentStatus: 'Handoff Disputed' }
+        );
+
+        // Create tracking events
+        const trackingEvents = products.map(p => ({
+            product: p._id,
+            handler: req.user.userId,
+            location: receiver?.location || 'Unknown',
+            status: 'Handoff Disputed',
+            notes: `Batch ${batchNumber} DISPUTED by ${receiver?.companyName || 'Unknown'}: ${reason}`,
+            latitude: latitude || undefined,
+            longitude: longitude || undefined,
+            geoVerified: false
+        }));
+        await Tracking.insertMany(trackingEvents);
+
+        res.json({
+            message: `Batch ${batchNumber} disputed.`,
+            handoff: {
+                id: handoff._id,
+                batchNumber,
+                status: 'DISPUTED',
+                disputeReason: reason
+            }
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   GET /api/track/pending
+// @desc    Get pending handoffs designated for the current user (batch-level)
+router.get('/pending', auth, async (req, res) => {
+    try {
+        const pendingHandoffs = await Handoff.find({
+            receiver: req.user.userId,
+            status: 'SHIPPED'
+        })
+            .populate('sender', 'companyName location role')
+            .populate('product', 'name productId batchNumber')
+            .sort({ shippedAt: -1 });
+
+        res.json({
+            totalPending: pendingHandoffs.length,
+            handoffs: pendingHandoffs
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   GET /api/track/handoff-history/:productId
+// @desc    Full handoff chain for a product
+router.get('/handoff-history/:productId', auth, async (req, res) => {
+    try {
+        const handoffs = await Handoff.find({ productId: req.params.productId })
+            .populate('sender', 'companyName location role')
+            .populate('receiver', 'companyName location role')
+            .sort({ shippedAt: 1 }); // Chronological order
+
+        res.json({
+            productId: req.params.productId,
+            totalHandoffs: handoffs.length,
+            handoffs
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   GET /api/track/my-inventory
+// @desc    Get batches the distributor currently holds (received but not yet shipped onward)
+router.get('/my-inventory', auth, authorize('Distributor'), async (req, res) => {
+    try {
+        // Step 1: Batches I received (confirmed handoffs where I am receiver)
+        const received = await Handoff.find({
+            receiver: req.user.userId,
+            status: 'CONFIRMED'
+        })
+            .populate('sender', 'companyName location role')
+            .populate('product', 'name productId batchNumber')
+            .sort({ confirmedAt: -1 });
+
+        // Step 2: Batches I already shipped onward (as sender)
+        const forwarded = await Handoff.find({
+            sender: req.user.userId,
+            status: { $in: ['SHIPPED', 'CONFIRMED'] }
+        });
+        const forwardedBatches = new Set(forwarded.map(h => h.batchNumber));
+
+        // Step 3: Inventory = received - forwarded
+        const inventory = received.filter(h => !forwardedBatches.has(h.batchNumber));
+
+        res.json({
+            totalInventory: inventory.length,
+            inventory
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   GET /api/track/my-activity
+// @desc    Get batch-level activity history for the current user (as sender or receiver)
+router.get('/my-activity', auth, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+
+        // All handoffs where user was sender or receiver, regardless of status
+        const activity = await Handoff.find({
+            $or: [
+                { sender: userId },
+                { receiver: userId }
+            ]
+        })
+            .populate('sender', 'companyName location role')
+            .populate('receiver', 'companyName location role')
+            .sort({ shippedAt: -1 })
+            .limit(20);
+
+        // Enrich each handoff with the user's role in it
+        const enriched = activity.map(h => {
+            const obj = h.toObject();
+            obj.userRole = h.sender?._id?.toString() === userId ? 'sender' : 'receiver';
+            return obj;
+        });
+
+        res.json(enriched);
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ message: 'Server error' });
@@ -354,3 +696,4 @@ router.get('/batch-receivers/:batchNumber', auth, async (req, res) => {
 });
 
 module.exports = router;
+
