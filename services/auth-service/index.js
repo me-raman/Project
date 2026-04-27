@@ -41,6 +41,11 @@ const otpLimiter = rateLimit({
 const User = require('./models/User');
 const Otp = require('./models/Otp');
 
+// Root route (for Render dashboard)
+app.get('/', (req, res) => {
+    res.json({ service: 'auth-service', status: 'running' });
+});
+
 // Health check
 app.get('/health', (req, res) => {
     res.json({ service: 'auth-service', status: 'healthy', timestamp: new Date().toISOString() });

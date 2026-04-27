@@ -23,6 +23,11 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Root route (for Render dashboard)
+app.get('/', (req, res) => {
+    res.json({ service: 'product-service', status: 'running' });
+});
+
 // Health check
 app.get('/health', (req, res) => {
     res.json({ service: 'product-service', status: 'healthy', timestamp: new Date().toISOString() });
